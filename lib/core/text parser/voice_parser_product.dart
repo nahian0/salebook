@@ -433,19 +433,132 @@ class VoiceParserProduct {
     '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
   };
 
+  // Number words in Bangla with their numeric values
+  static const Map<String, int> _banglaNumberWords = {
+    'এক': 1, 'দুই': 2, 'তিন': 3, 'চার': 4, 'পাঁচ': 5,
+    'ছয়': 6, 'সাত': 7, 'আট': 8, 'নয়': 9, 'দশ': 10,
+    'এগারো': 11, 'বারো': 12, 'তেরো': 13, 'চৌদ্দ': 14, 'পনেরো': 15,
+    'ষোল': 16, 'সতেরো': 17, 'আঠারো': 18, 'উনিশ': 19, 'বিশ': 20,
+    'ত্রিশ': 30, 'চল্লিশ': 40, 'পঞ্চাশ': 50, 'ষাট': 60,
+    'সত্তর': 70, 'আশি': 80, 'নব্বই': 90, 'শত': 100, 'হাজার': 1000
+  };
+
+  // English number words with their numeric values
+  static const Map<String, int> _englishNumberWords = {
+    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+    'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+    'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
+    'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
+    'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+    'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90,
+    'hundred': 100, 'thousand': 1000
+  };
+
+  // Price indicators in Bangla
+  static const List<String> _priceIndicators = [
+    'টাকা', 'taka', 'tk', 'rupees', 'rupee', 'টক', 'price', 'dam', 'দাম'
+  ];
+
   // Common filler words to remove (including Bangla)
   static const List<String> _fillerWords = [
     'add', 'new', 'product', 'item', 'in', 'of', 'the', 'a', 'an',
-    'please', 'i', 'want', 'to', 'need',
-    'একটি', 'নতুন', 'দিন', 'চাই', 'লাগবে', 'নিতে'
+    'please', 'i', 'want', 'to', 'need', 'at', 'for', 'per',
+    'একটি', 'নতুন', 'দিন', 'চাই', 'লাগবে', 'নিতে', 'এ', 'তে'
   ];
 
-  // Number words in Bangla
-  static const List<String> _banglaNumberWords = [
-    'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়', 'দশ',
-    'এগারো', 'বারো', 'তেরো', 'চৌদ্দ', 'পনেরো', 'ষোল', 'সতেরো', 'আঠারো', 'উনিশ', 'বিশ',
-    'ত্রিশ', 'চল্লিশ', 'পঞ্চাশ', 'ষাট', 'সত্তর', 'আশি', 'নব্বই', 'শত', 'হাজার'
-  ];
+  /// Main method: Parse complete voice input and extract all fields
+  /// Input format examples: "চাল ১০ কেজি ১০০ টাকা" or "Rice 10 kg 100 taka"
+  static Map<String, String> parseFullProductInput(String input) {
+    if (input.trim().isEmpty) {
+      return {
+        'productName': '',
+        'quantity': '',
+        'unit': 'Kilogram (kg)',
+        'price': '',
+      };
+    }
+
+    // Clean and convert the input
+    String cleaned = input.trim();
+    String cleanedLower = cleaned.toLowerCase();
+
+    // Convert Bangla numbers to English
+    cleaned = _convertBanglaNumbers(cleaned);
+    cleanedLower = _convertBanglaNumbers(cleanedLower);
+
+    // Extract all numeric values from the input
+    List<double> numbers = _extractAllNumbers(cleanedLower);
+
+    // Match product from database
+    String? matchedProduct = _matchProductFromDatabase(cleanedLower);
+
+    // Detect unit
+    String? detectedUnit = _detectUnit(cleanedLower);
+    String finalUnit = 'Kilogram (kg)';
+
+    if (detectedUnit != null) {
+      finalUnit = detectedUnit;
+    } else if (matchedProduct != null) {
+      finalUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
+    }
+
+    // Extract product name
+    String productName = matchedProduct ?? _extractProductName(cleaned, detectedUnit);
+
+    // Parse quantity and price from numbers
+    String quantity = '';
+    String price = '';
+
+    if (numbers.isNotEmpty) {
+      // First number is usually quantity
+      quantity = numbers[0].toString();
+
+      // Second number is usually price
+      if (numbers.length > 1) {
+        price = numbers[1].toString();
+      }
+    }
+
+    return {
+      'productName': productName,
+      'quantity': quantity,
+      'unit': finalUnit,
+      'price': price,
+    };
+  }
+
+  /// Extract all numeric values from text (including Bangla number words)
+  static List<double> _extractAllNumbers(String text) {
+    List<double> numbers = [];
+
+    // First, convert Bangla number words to numeric values
+    String processedText = text;
+
+    // Replace Bangla number words with their numeric equivalents
+    _banglaNumberWords.forEach((word, value) {
+      RegExp regex = RegExp(r'\b' + RegExp.escape(word) + r'\b', unicode: true);
+      processedText = processedText.replaceAll(regex, ' $value ');
+    });
+
+    // Replace English number words with their numeric equivalents
+    _englishNumberWords.forEach((word, value) {
+      RegExp regex = RegExp(r'\b' + RegExp.escape(word) + r'\b');
+      processedText = processedText.replaceAll(regex, ' $value ');
+    });
+
+    // Extract all numeric values (including decimals)
+    RegExp numberRegex = RegExp(r'\b\d+\.?\d*\b');
+    Iterable<Match> matches = numberRegex.allMatches(processedText);
+
+    for (Match match in matches) {
+      double? num = double.tryParse(match.group(0)!);
+      if (num != null) {
+        numbers.add(num);
+      }
+    }
+
+    return numbers;
+  }
 
   /// Parse voice input text and extract product name and unit
   /// Uses product database for better matching and default units
@@ -495,7 +608,7 @@ class VoiceParserProduct {
     // Check each product in database
     for (var entry in _productDatabase.entries) {
       String productName = entry.key;
-      List<String> variations = entry.value['variations'] as List<String>;
+      List<String> variations = (entry.value['variations'] as List).cast<String>();
 
       for (String variation in variations) {
         // Check if variation exists in the text
@@ -523,7 +636,7 @@ class VoiceParserProduct {
 
     for (var entry in _productDatabase.entries) {
       String productName = entry.key;
-      List<String> variations = entry.value['variations'] as List<String>;
+      List<String> variations = (entry.value['variations'] as List).cast<String>();
 
       // Check if any variation starts with or contains the search text
       for (String variation in variations) {
@@ -591,35 +704,37 @@ class VoiceParserProduct {
       }
     }
 
-    // Remove English numbers
-    result = result.replaceAll(RegExp(r'\s*\b\d+\.?\d*\b\s*'), ' ');
-
-    // Remove Bangla number words
-    for (String numberWord in _banglaNumberWords) {
+    // Remove price indicators
+    for (String indicator in _priceIndicators) {
       RegExp regex = RegExp(
-        r'\s*\b' + RegExp.escape(numberWord) + r'\b\s*',
+        r'\s*\b' + RegExp.escape(indicator) + r'\b\s*',
         caseSensitive: false,
         unicode: true,
       );
       result = result.replaceAll(regex, ' ');
     }
 
-    // Remove English number words
-    const englishNumberWords = [
-      'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
-      'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen',
-      'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
-      'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety',
-      'hundred', 'thousand'
-    ];
+    // Remove English numbers
+    result = result.replaceAll(RegExp(r'\s*\b\d+\.?\d*\b\s*'), ' ');
 
-    for (String number in englishNumberWords) {
+    // Remove Bangla number words
+    _banglaNumberWords.keys.forEach((numberWord) {
+      RegExp regex = RegExp(
+        r'\s*\b' + RegExp.escape(numberWord) + r'\b\s*',
+        caseSensitive: false,
+        unicode: true,
+      );
+      result = result.replaceAll(regex, ' ');
+    });
+
+    // Remove English number words
+    _englishNumberWords.keys.forEach((number) {
       RegExp regex = RegExp(
         r'\s*\b' + RegExp.escape(number) + r'\b\s*',
         caseSensitive: false,
       );
       result = result.replaceAll(regex, ' ');
-    }
+    });
 
     // Remove filler words
     for (String filler in _fillerWords) {
@@ -686,29 +801,5 @@ class VoiceParserProduct {
     }
 
     return result;
-  }
-
-  /// Test the parser with Bangla inputs
-  static void testParser() {
-    final testCases = [
-      'চাল ৫ কেজি',
-      'মুরগি ২ কেজি',
-      'ডিম এক ডজন',
-      'দুধ ১ লিটার',
-      'আলু 5 kg',
-      'পেঁয়াজ ৩ কেজি',
-      'তেল ২ লিটার',
-      'চিনি ১ কেজি',
-      'আটা 10 কেজি',
-      'টমেটো ২ কেজি',
-    ];
-
-    print('=== Voice Parser Test Results (with Database) ===\n');
-    for (String test in testCases) {
-      var result = parseVoiceInput(test);
-      print('Input: "$test"');
-      print('Output: Name="${result['name']}", Unit="${result['unit']}"');
-      print('---');
-    }
   }
 }
