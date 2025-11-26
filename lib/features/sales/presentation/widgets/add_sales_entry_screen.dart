@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:permission_handler/permission_handler.dart';
-import '../../../../core/text parser/voice_parser_product.dart';
+import '../../../../core/services/speech_services.dart';
+import '../../../../core/text parser/voice_parser_product_updated.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class AddSalesEntryScreen extends StatefulWidget {
@@ -12,7 +11,7 @@ class AddSalesEntryScreen extends StatefulWidget {
   State<AddSalesEntryScreen> createState() => _AddSalesEntryScreenState();
 }
 
-class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
+class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> with TickerProviderStateMixin {
   // Customer selection
   String? _selectedCustomer;
   final List<String> _customerList = [];
@@ -23,184 +22,196 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _paidController = TextEditingController();
-  String _selectedUnit = 'Kilogram (kg)';
+  String _selectedUnit = 'লিটার';
 
   // Product list
   final List<Map<String, dynamic>> _products = [];
   double _totalAmount = 0.0;
 
-  // Speech to text
-  late stt.SpeechToText _speech;
-  bool _speechAvailable = false;
-  bool _isListeningForCustomer = false;
-  bool _isListeningForProduct = false;
+  // Unified Speech Service
+  final HybridSpeechService _speechService = HybridSpeechService();
+  bool _isListening = false;
   String _currentLocaleId = 'bn-BD';
+  SpeechProvider? _activeSpeechProvider;
+
+  // Animation controllers
+  late AnimationController _pulseController;
+  late AnimationController _waveController;
+  late Animation<double> _scaleAnimation;
 
   final List<String> _units = [
-    'Kilogram (kg)',
-    'Gram (g)',
-    'Liter (L)',
-    'Piece',
-    'Dozen',
-    'Pack',
-    'Box',
+    'কেজি',
+    'গ্রাম',
+    'লিটার',
+    'পিস',
+    'ডজন',
+    'প্যাক',
+    'বক্স',
   ];
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
+    _initAnimations();
     _paidController.addListener(() {
       setState(() {});
     });
   }
 
+  void _initAnimations() {
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _waveController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
   Future<void> _initSpeech() async {
-    _speech = stt.SpeechToText();
-    _speechAvailable = await _speech.initialize(
+    final initialized = await _speechService.initialize();
+    if (mounted) {
+      if (!initialized) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('স্পিচ রিকগনিশন উপলব্ধ নেই'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleVoiceInput() async {
+    if (_isListening) {
+      await _stopListening();
+    } else {
+      await _startListening();
+    }
+  }
+
+  Future<void> _startListening() async {
+    if (_speechService.isListening) return;
+
+    setState(() => _isListening = true);
+    _pulseController.repeat(reverse: true);
+    _waveController.repeat();
+
+    String lastRecognizedText = '';
+    bool hasCustomer = _selectedCustomer != null && _selectedCustomer!.isNotEmpty;
+
+    await _speechService.startListening(
+      languageCode: _currentLocaleId,
+      onResult: (text) {
+        if (text.isNotEmpty) {
+          lastRecognizedText = text;
+          _activeSpeechProvider = _speechService.currentProvider;
+        }
+      },
       onError: (error) {
+        _handleListeningStop(lastRecognizedText, hasCustomer);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Speech error: ${error.errorMsg}'),
+              content: Text('স্পিচ এরর: $error'),
               backgroundColor: AppColors.error,
             ),
           );
         }
       },
     );
-    setState(() {});
-  }
 
-  Future<void> _requestMicrophonePermission() async {
-    var status = await Permission.microphone.status;
-    if (!status.isGranted) {
-      status = await Permission.microphone.request();
-      if (!status.isGranted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Microphone permission required'),
-            backgroundColor: AppColors.error,
-            action: SnackBarAction(
-              label: 'Settings',
-              textColor: Colors.white,
-              onPressed: () => openAppSettings(),
-            ),
-          ),
-        );
+    // Auto-stop after 5 seconds of listening
+    Future.delayed(const Duration(seconds: 5), () async {
+      if (_isListening) {
+        await _stopListening();
+        _handleListeningStop(lastRecognizedText, hasCustomer);
       }
-    }
+    });
   }
 
-  Future<void> _startListeningForCustomer() async {
-    await _requestMicrophonePermission();
+  Future<void> _stopListening() async {
+    await _speechService.stopListening();
+    setState(() => _isListening = false);
+    _pulseController.stop();
+    _pulseController.reset();
+    _waveController.stop();
+    _waveController.reset();
+  }
 
-    if (!_speechAvailable) return;
+  void _handleListeningStop(String recognizedText, bool hadCustomer) {
+    if (recognizedText.isEmpty) return;
 
-    setState(() => _isListeningForCustomer = true);
-
-    await _speech.listen(
-      onResult: (result) {
-        if (result.recognizedWords.isNotEmpty) {
-          setState(() {
-            _customerSearchController.text = result.recognizedWords;
-
-            // Add to list if not exists
-            if (!_customerList.contains(result.recognizedWords)) {
-              _customerList.add(result.recognizedWords);
-            }
-            _selectedCustomer = result.recognizedWords;
-          });
+    if (!hadCustomer) {
+      // Process as customer name
+      setState(() {
+        _customerSearchController.text = recognizedText;
+        if (!_customerList.contains(recognizedText)) {
+          _customerList.add(recognizedText);
         }
-      },
-      localeId: _currentLocaleId,
-      listenMode: stt.ListenMode.confirmation,
-      cancelOnError: true,
-      partialResults: true,
-    );
-  }
+        _selectedCustomer = recognizedText;
+      });
 
-  Future<void> _stopListeningForCustomer() async {
-    await _speech.stop();
-    setState(() => _isListeningForCustomer = false);
-  }
-
-  Future<void> _toggleListeningForProduct() async {
-    if (_isListeningForProduct) {
-      await _speech.stop();
-      setState(() => _isListeningForProduct = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('গ্রাহক যোগ হয়েছে: $recognizedText'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     } else {
-      if (_selectedCustomer == null || _selectedCustomer!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a customer first'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
+      // Process as product input
+      final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
 
-      await _requestMicrophonePermission();
-      setState(() => _isListeningForProduct = true);
+      setState(() {
+        if (parsedData['productName']?.isNotEmpty ?? false) {
+          String productName = parsedData['productName']!;
+          productName = _cleanProductName(productName);
+          _productController.text = productName;
 
-      await _speech.listen(
-        onResult: (result) {
-          if (result.recognizedWords.isNotEmpty) {
-            // Use VoiceParserProduct to parse the input
-            final parsedData = VoiceParserProduct.parseFullProductInput(result.recognizedWords);
-
-            setState(() {
-              // ONLY set product name - nothing else
-              if (parsedData['productName']?.isNotEmpty ?? false) {
-                String productName = parsedData['productName']!;
-                // Remove any numbers, units, or extra text
-                productName = _cleanProductName(productName);
-                _productController.text = productName;
-
-                // Auto-select unit based on product
-                String detectedUnit = parsedData['unit'] ?? 'Kilogram (kg)';
-                if (_units.contains(detectedUnit)) {
-                  _selectedUnit = detectedUnit;
-                }
-              }
-
-              if (parsedData['quantity']?.isNotEmpty ?? false) {
-                _quantityController.text = parsedData['quantity']!;
-              }
-
-              if (parsedData['price']?.isNotEmpty ?? false) {
-                _priceController.text = parsedData['price']!;
-              }
-            });
+          String detectedUnit = parsedData['unit'] ?? 'লিটার';
+          if (_units.contains(detectedUnit)) {
+            _selectedUnit = detectedUnit;
           }
-        },
-        localeId: _currentLocaleId,
-        listenMode: stt.ListenMode.confirmation,
-        cancelOnError: true,
-        partialResults: true,
+        }
+
+        if (parsedData['quantity']?.isNotEmpty ?? false) {
+          _quantityController.text = parsedData['quantity']!;
+        }
+
+        if (parsedData['price']?.isNotEmpty ?? false) {
+          _priceController.text = parsedData['price']!;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('পণ্যের তথ্য যোগ হয়েছে'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
       );
     }
   }
 
-  // Clean product name to remove any numbers, units, or unwanted text
   String _cleanProductName(String productName) {
     String cleaned = productName.trim();
-
-    // Remove any trailing numbers
     cleaned = cleaned.replaceAll(RegExp(r'\s*\d+\.?\d*\s*$'), '');
-
-    // Remove common unit words that might slip through
     final unitWords = ['kg', 'kilo', 'liter', 'litre', 'gram', 'piece', 'dozen', 'pack', 'box'];
     for (var unit in unitWords) {
       cleaned = cleaned.replaceAll(RegExp(r'\s*\b' + unit + r'\b\s*', caseSensitive: false), '');
     }
-
-    // Remove Bangla unit words
     final banglaUnits = ['কেজি', 'কিলো', 'লিটার', 'গ্রাম', 'টা', 'টি', 'ডজন'];
     for (var unit in banglaUnits) {
       cleaned = cleaned.replaceAll(RegExp(r'\s*' + unit + r'\s*', unicode: true), '');
     }
-
     return cleaned.trim();
   }
 
@@ -212,7 +223,7 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
     if (product.isEmpty || quantity <= 0 || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill all fields correctly'),
+          content: Text('সব ফিল্ড সঠিকভাবে পূরণ করুন'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -229,18 +240,17 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
       });
       _calculateTotal();
 
-      // Reset form
       _productController.clear();
       _quantityController.clear();
       _priceController.clear();
-      _selectedUnit = 'Kilogram (kg)';
+      _selectedUnit = 'লিটার';
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$product added successfully'),
+        content: Text('$product যোগ হয়েছে'),
         backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -268,14 +278,13 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
     if (_selectedCustomer == null || _products.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add at least one product'),
+          content: Text('অন্তত একটি পণ্য যোগ করুন'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    // Return the sales data to previous screen
     Navigator.pop(context, {
       'customerName': _selectedCustomer,
       'products': _products,
@@ -286,418 +295,581 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
     });
   }
 
+  String _getListeningPrompt() {
+    if (_selectedCustomer == null || _selectedCustomer!.isEmpty) {
+      return 'গ্রাহকের নাম বলুন...';
+    } else {
+      return 'পণ্যের তথ্য বলুন...';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('New Sales Entry', style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: AppColors.surface,
-        actions: [
-          if (_products.isNotEmpty)
-            TextButton.icon(
-              onPressed: _saveSalesEntry,
-              icon: const Icon(Icons.check, color: AppColors.success),
-              label: const Text('Save', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
-            ),
-          const SizedBox(width: 8),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'নতুন প্রোডাক্ট',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: AppColors.appBarBackground,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 180),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
+
+                      // Customer Input
+                      _buildCustomerSection(),
+
+                      const SizedBox(height: 16),
+
+                      // Products List (moved before product form)
+                      if (_products.isNotEmpty)
+                        _buildProductsList(),
+
+                      if (_products.isNotEmpty)
+                        const SizedBox(height: 16),
+
+                      // Product Input Form
+                      if (_selectedCustomer != null && _selectedCustomer!.isNotEmpty)
+                        _buildProductForm(),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Bottom Voice Button and Status
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomVoiceSection(),
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Customer Selection Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+      floatingActionButton: _products.isNotEmpty && !_isListening
+          ? FloatingActionButton.extended(
+        onPressed: _saveSalesEntry,
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.check, color: Colors.white),
+        label: const Text(
+          'নিশ্চিত',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Widget _buildCustomerSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'গ্রাহকের নাম',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.person, color: AppColors.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Customer Name',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
+              if (_selectedCustomer != null && _selectedCustomer!.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedCustomer = null;
+                      _customerSearchController.clear();
+                    });
+                  },
+                  icon: const Icon(Icons.edit, size: 16, color: AppColors.primary),
+                  label: const Text(
+                    'পরিবর্তন',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedCustomer,
-                              hint: const Text('Select or speak customer name', style: TextStyle(fontSize: 13)),
-                              isExpanded: true,
-                              items: _customerList.map((customer) {
-                                return DropdownMenuItem(
-                                  value: customer,
-                                  child: Text(customer, style: const TextStyle(fontSize: 13)),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() => _selectedCustomer = value);
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _isListeningForCustomer ? AppColors.error : AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: IconButton(
-                          onPressed: _speechAvailable
-                              ? (_isListeningForCustomer ? _stopListeningForCustomer : _startListeningForCustomer)
-                              : null,
-                          icon: Icon(
-                            _isListeningForCustomer ? Icons.stop : Icons.mic,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          iconSize: 20,
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(),
-                        ),
-                      ),
-                    ],
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  if (_isListeningForCustomer)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '🎤 Listening for customer name...',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedCustomer,
+                hint: const Text(
+                  'নাম লিখুন বা ভয়েস বাটন চাপুন',
+                  style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                ),
+                isExpanded: true,
+                items: _customerList.map((customer) {
+                  return DropdownMenuItem(
+                    value: customer,
+                    child: Text(
+                      customer,
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedCustomer = value);
+                },
+                icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductForm() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'পণ্যের তথ্য',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Product Name
+          TextField(
+            controller: _productController,
+            decoration: InputDecoration(
+              labelText: 'প্রোডাক্টের নাম',
+              labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              hintText: 'যেমন: দুধ',
+              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+              filled: true,
+              fillColor: AppColors.background,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+
+          // Quantity and Unit Row
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _quantityController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'পরিমাণ',
+                    labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.borderLight),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.primary, width: 2),
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedUnit,
+                      isExpanded: true,
+                      items: _units.map((unit) {
+                        return DropdownMenuItem(
+                          value: unit,
+                          child: Text(
+                            unit,
+                            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => setState(() => _selectedUnit = value!),
+                      icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Price
+          TextField(
+            controller: _priceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'প্রতি ইউনিট মূল্য (৳)',
+              labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              filled: true,
+              fillColor: AppColors.background,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+
+          // Add Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _addProduct,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'যোগ করুন',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomVoiceSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Listening Status
+            if (_isListening)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    _buildWaveAnimation(),
+                    const SizedBox(height: 8),
+                    Text(
+                      _getListeningPrompt(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                ],
+                  ],
+                ),
+              ),
+
+            // Voice Button
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: GestureDetector(
+                onTap: _toggleVoiceInput,
+                child: AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _isListening ? _scaleAnimation.value : 1.0,
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: _isListening ? AppColors.error : AppColors.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_isListening ? AppColors.error : AppColors.primary).withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: _isListening ? 8 : 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
 
-            // Add Product Form (Compact)
-            if (_selectedCustomer != null && _selectedCustomer!.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.add_shopping_cart, color: AppColors.primary, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Add Product',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: _isListeningForProduct ? AppColors.error : AppColors.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            onPressed: _speechAvailable ? _toggleListeningForProduct : null,
-                            icon: Icon(
-                              _isListeningForProduct ? Icons.stop : Icons.mic,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            iconSize: 18,
-                            padding: const EdgeInsets.all(6),
-                            constraints: const BoxConstraints(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_isListeningForProduct)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
-                        child: Text(
-                          '🎤 Listening for product details...',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _productController,
-                      decoration: InputDecoration(
-                        labelText: 'Product Name',
-                        labelStyle: const TextStyle(fontSize: 12),
-                        hintText: 'চাল / Rice',
-                        hintStyle: const TextStyle(fontSize: 12),
-                        prefixIcon: const Icon(Icons.shopping_basket_outlined, size: 18),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                      ),
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _quantityController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Qty',
-                              labelStyle: const TextStyle(fontSize: 12),
-                              prefixIcon: const Icon(Icons.scale_outlined, size: 18),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedUnit,
-                                isExpanded: true,
-                                items: _units.map((unit) {
-                                  return DropdownMenuItem(
-                                    value: unit,
-                                    child: Text(unit, style: const TextStyle(fontSize: 11)),
-                                  );
-                                }).toList(),
-                                onChanged: (value) => setState(() => _selectedUnit = value!),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'Unit Price (৳)',
-                        labelStyle: const TextStyle(fontSize: 12),
-                        prefixIcon: const Icon(Icons.currency_exchange, size: 18),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                      ),
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _addProduct,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Products List
-            if (_products.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: List.generate(_products.length, (index) {
-                    final product = _products[index];
-                    return Column(
-                      children: [
-                        _FullWidthProductItem(
-                          product: product,
-                          onDelete: () => _deleteProduct(index),
-                        ),
-                        if (index < _products.length - 1)
-                          Divider(
-                            color: Colors.grey[300],
-                            height: 0,
-                            thickness: 1,
-                          ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-
-            // Paid Section
-            if (_products.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _paidController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Paid (৳)',
-                    labelStyle: const TextStyle(fontSize: 12),
-                    hintText: '0',
-                    prefixIcon: const Icon(Icons.payments, size: 18),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    filled: true,
-                    fillColor: Colors.grey[50],
+            // Hint Text
+            if (!_isListening)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _selectedCustomer == null || _selectedCustomer!.isEmpty
+                      ? 'গ্রাহকের নাম বলতে চাপুন'
+                      : 'পণ্য যোগ করতে চাপুন',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
                   ),
-                  style: const TextStyle(fontSize: 13),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Total and Due Section
-            if (_products.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  Widget _buildWaveAnimation() {
+    return SizedBox(
+      width: 80,
+      height: 40,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(5, (index) {
+          return AnimatedBuilder(
+            animation: _waveController,
+            builder: (context, child) {
+              final double value = (_waveController.value + (index * 0.15)) % 1.0;
+              final double height = 8 + (24 * (0.5 + 0.5 * (value < 0.5 ? value * 2 : (1 - value) * 2)));
+              return Container(
+                width: 4,
+                height: height,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Column(
+              );
+            },
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildProductsList() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'প্রোডাক্ট (${_products.length})',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _products.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              color: AppColors.borderLight,
+              indent: 16,
+              endIndent: 16,
+            ),
+            itemBuilder: (context, index) {
+              final product = _products[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
                   children: [
-                    // Total Amount
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total',
-                            style: TextStyle(
+                            product['productName'],
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Text(
-                            '৳${_totalAmount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                            '${product['quantity']} ${product['unit']} × ৳${product['price'].toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Divider(
-                      color: Colors.grey[300],
-                      height: 0,
-                      thickness: 1,
-                    ),
-                    // Due Amount
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Due',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: _getDueAmount() > 0 ? AppColors.error : AppColors.success,
-                            ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '৳${product['total'].toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
                           ),
-                          Text(
-                            '৳${_getDueAmount().toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _getDueAmount() > 0 ? AppColors.error : AppColors.success,
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () => _deleteProduct(index),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: AppColors.error,
+                            size: 20,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-
-            const SizedBox(height: 16),
-          ],
-        ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -709,79 +881,9 @@ class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
     _quantityController.dispose();
     _priceController.dispose();
     _paidController.dispose();
-    _speech.stop();
+    _speechService.dispose();
+    _pulseController.dispose();
+    _waveController.dispose();
     super.dispose();
-  }
-}
-
-// Full Width Product Item Widget
-class _FullWidthProductItem extends StatelessWidget {
-  final Map<String, dynamic> product;
-  final VoidCallback onDelete;
-
-  const _FullWidthProductItem({
-    required this.product,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.getLightColor(AppColors.primary),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.shopping_bag_outlined, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product['productName'],
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${product['quantity']} ${product['unit']} × ৳${product['price'].toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '৳${product['total'].toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: onDelete,
-                child: Icon(Icons.delete_outline, color: AppColors.error, size: 18),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }

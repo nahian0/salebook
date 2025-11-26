@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import '../../../../core/text parser/voice_parser_product.dart';
+import '../../../../core/text parser/voice_parser_product_updated.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class AddProductDialog extends StatefulWidget {
@@ -46,7 +46,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
     if (text.isNotEmpty) {
       // Get product suggestions
-      final suggestions = VoiceParserProduct.getProductSuggestions(text);
+      final suggestions = VoiceParserProductUpdated.getProductSuggestions(text);
       setState(() {
         _productSuggestions = suggestions.take(5).toList();
         _showSuggestions = suggestions.isNotEmpty;
@@ -54,12 +54,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
       // Auto-detect unit from database or text
       if (_autoDetectUnit) {
-        final parsed = VoiceParserProduct.parseVoiceInput(text);
+        final parsed = VoiceParserProductUpdated.parseVoiceInput(text);
         final detectedName = parsed['name']!;
         final detectedUnit = parsed['unit']!;
 
         // If we have a detected name, get its default unit
-        String finalUnit = VoiceParserProduct.getDefaultUnit(detectedName);
+        String finalUnit = VoiceParserProductUpdated.getDefaultUnit(detectedName);
 
         // If unit was explicitly mentioned in text, use that instead
         if (detectedUnit != 'Piece' || text.toLowerCase().contains(RegExp(r'\b(piece|pieces|pcs|pc|ta|টা|টি|khana|খানা)\b'))) {
@@ -88,7 +88,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
       // Get default unit for this product from database
       if (_autoDetectUnit) {
-        _selectedUnit = VoiceParserProduct.getDefaultUnit(product);
+        _selectedUnit = VoiceParserProductUpdated.getDefaultUnit(product);
       }
     });
   }
@@ -127,7 +127,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           _voiceTranscript = result.recognizedWords;
 
           if (result.recognizedWords.isNotEmpty) {
-            final parsed = VoiceParserProduct.parseVoiceInput(result.recognizedWords);
+            final parsed = VoiceParserProductUpdated.parseVoiceInput(result.recognizedWords);
             _nameController.text = parsed['name']!;
             if (_autoDetectUnit) {
               _selectedUnit = parsed['unit']!;
@@ -186,9 +186,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: VoiceParserProduct.getSupportedUnits().length,
+                itemCount: VoiceParserProductUpdated.getSupportedUnits().length,
                 itemBuilder: (context, index) {
-                  final unit = VoiceParserProduct.getSupportedUnits()[index];
+                  final unit = VoiceParserProductUpdated.getSupportedUnits()[index];
                   final isSelected = unit == _selectedUnit;
 
                   return ListTile(

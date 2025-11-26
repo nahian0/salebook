@@ -2,43 +2,48 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Primary Colors
-  static const Color primary = Color(0xFF6366F1); // Indigo
-  static const Color primaryLight = Color(0xFF818CF8);
-  static const Color primaryDark = Color(0xFF4F46E5);
+  static const Color primary = Color(0xFFE74C3C); // Red
+  static const Color primaryLight = Color(0xFFFFE6E0);
+  static const Color primaryDark = Color(0xFFC0392B);
 
   // Background Colors
-  static const Color background = Color(0xFFFAFAFA);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF5F5F5);
+  static const Color background = Color(0xFFFAF6F1); // Warm Beige
+  static const Color surface = Color(0xFFFFFFFF); // White
+  static const Color surfaceVariant = Color(0xFFFAF6F1); // Light Beige
+  static const Color appBarBackground = Color(0xFFE8DCC8); // Tan
 
   // Text Colors
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textTertiary = Color(0xFF9CA3AF);
+  static const Color textPrimary = Color(0xFF1A1A1A); // Dark Gray
+  static const Color textSecondary = Color(0xFF666666); // Medium Gray
+  static const Color textTertiary = Color(0xFF999999); // Light Gray
 
   // Feature Card Colors
-  static const Color stockColor = Color(0xFF6366F1); // Indigo
-  static const Color salesColor = Color(0xFF10B981); // Green
-  static const Color customersColor = Color(0xFFF59E0B); // Orange
-  static const Color reportsColor = Color(0xFF8B5CF6); // Purple
-  static const Color paymentsColor = Color(0xFF06B6D4); // Cyan
-  static const Color settingsColor = Color(0xFF6B7280); // Gray
+  static const Color stockColor = Color(0xFF4CAF50); // Green
+  static const Color salesColor = Color(0xFFE74C3C); // Red
+  static const Color customersColor = Color(0xFFF39C12); // Orange
+  static const Color reportsColor = Color(0xFF3498DB); // Blue
+  static const Color paymentsColor = Color(0xFF9B59B6); // Purple
+  static const Color analyticsColor = Color(0xFF1ABC9C); // Teal
+  static const Color settingsColor = Color(0xFF34495E); // Dark Blue-Gray
 
   // Menu Item Colors
-  static const Color settingsMenuColor = Color(0xFF3B82F6); // Blue
-  static const Color profileMenuColor = Color(0xFF8B5CF6); // Purple
-  static const Color aboutMenuColor = Color(0xFF10B981); // Green
-  static const Color helpMenuColor = Color(0xFFF59E0B); // Orange
+  static const Color settingsMenuColor = Color(0xFF9B59B6); // Purple
+  static const Color profileMenuColor = Color(0xFF1ABC9C); // Teal
+  static const Color aboutMenuColor = Color(0xFFF39C12); // Orange
+  static const Color helpMenuColor = Color(0xFFE91E63); // Pink
 
   // Status Colors
-  static const Color success = Color(0xFF10B981);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFEF4444);
-  static const Color info = Color(0xFF3B82F6);
+  static const Color success = Color(0xFF4CAF50); // Green
+  static const Color warning = Color(0xFFF39C12); // Orange
+  static const Color error = Color(0xFFE74C3C); // Red
+  static const Color errorLight = Color(0xFFFFEBEE); // Light Red
+  static const Color info = Color(0xFF3498DB); // Blue
 
   // Border Colors
-  static const Color borderLight = Color(0xFFE5E7EB);
+  static const Color border = Color(0xFFE0E0E0);
+  static const Color borderLight = Color(0xFFF0F0F0);
   static const Color borderMedium = Color(0xFFD1D5DB);
+  static const Color divider = Color(0xFFF5F5F5);
 
   // Shadow Colors
   static Color shadowLight = Colors.black.withOpacity(0.05);
@@ -46,12 +51,12 @@ class AppColors {
   static Color shadowDark = Colors.black.withOpacity(0.2);
 
   // Badge Colors
-  static const Color badgeBackground = Color(0xFFEF4444);
+  static const Color badgeBackground = Color(0xFFE74C3C);
   static const Color badgeText = Color(0xFFFFFFFF);
 
   // Helper method to get light version of a color
   static Color getLightColor(Color color) {
-    return color.withOpacity(0.1);
+    return color.withOpacity(0.15);
   }
 
   // Helper method to get color for menu items

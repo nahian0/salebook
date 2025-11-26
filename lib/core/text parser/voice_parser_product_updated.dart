@@ -1,4 +1,4 @@
-class VoiceParserProduct {
+class VoiceParserProductUpdated {
   // Comprehensive product database with Bangla names and variations
   static const Map<String, Map<String, dynamic>> _productDatabase = {
     // Grains & Rice
@@ -478,7 +478,6 @@ class VoiceParserProduct {
       };
     }
 
-    // Clean and convert the input
     String cleaned = input.trim();
     String cleanedLower = cleaned.toLowerCase();
 
@@ -486,11 +485,14 @@ class VoiceParserProduct {
     cleaned = _convertBanglaNumbers(cleaned);
     cleanedLower = _convertBanglaNumbers(cleanedLower);
 
-    // Extract all numeric values from the input
-    List<double> numbers = _extractAllNumbers(cleanedLower);
+    // Extract product name (first word/words before any number)
+    String productName = _extractProductNameSimple(cleaned);
 
-    // Match product from database
-    String? matchedProduct = _matchProductFromDatabase(cleanedLower);
+    // Match product from database to get proper name and default unit
+    String? matchedProduct = _matchProductFromDatabase(productName.toLowerCase());
+
+    // Extract all numeric values
+    List<double> numbers = _extractAllNumbers(cleanedLower);
 
     // Detect unit
     String? detectedUnit = _detectUnit(cleanedLower);
@@ -502,29 +504,113 @@ class VoiceParserProduct {
       finalUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
     }
 
-    // Extract product name
-    String productName = matchedProduct ?? _extractProductName(cleaned, detectedUnit);
+    // Use matched product if found, otherwise use extracted name
+    String finalProductName = matchedProduct ?? productName;
 
     // Parse quantity and price from numbers
     String quantity = '';
     String price = '';
 
     if (numbers.isNotEmpty) {
-      // First number is usually quantity
       quantity = numbers[0].toString();
-
-      // Second number is usually price
       if (numbers.length > 1) {
         price = numbers[1].toString();
       }
     }
 
     return {
-      'productName': productName,
+      'productName': finalProductName,
       'quantity': quantity,
       'unit': finalUnit,
       'price': price,
     };
+  }
+
+  /// Simply extract the first word(s) before any number
+  static String _extractProductNameSimple(String text) {
+    // Split by spaces
+    List<String> words = text.trim().split(RegExp(r'\s+'));
+
+    String productName = '';
+
+    for (String word in words) {
+      // Stop if we encounter a number
+      if (RegExp(r'\d').hasMatch(word)) {
+        break;
+      }
+
+      // Stop if we encounter a unit word
+      bool isUnit = false;
+      for (var variations in _unitVariations.values) {
+        if (variations.any((v) => v.toLowerCase() == word.toLowerCase())) {
+          isUnit = true;
+          break;
+        }
+      }
+      if (isUnit) break;
+
+      // Add word to product name
+      if (productName.isEmpty) {
+        productName = word;
+      } else {
+        productName += ' ' + word;
+      }
+    }
+
+    return productName.trim();
+  }
+
+  /// Extract product name by removing unit, numbers, and filler words
+  static String _extractProductName(String text, String? detectedUnit) {
+    String result = text.toLowerCase();
+
+    result = result.replaceAll(RegExp(r'\d+\.?\d*'), ' ');
+
+    _banglaNumberWords.keys.forEach((numberWord) {
+      result = result.replaceAll(RegExp(r'\s*' + RegExp.escape(numberWord) + r'\s*', unicode: true), ' ');
+    });
+
+    _englishNumberWords.keys.forEach((number) {
+      result = result.replaceAll(RegExp(r'\s*\b' + RegExp.escape(number) + r'\b\s*'), ' ');
+    });
+
+    _unitVariations.values.forEach((variations) {
+      for (String variation in variations) {
+        result = result.replaceAll(
+          RegExp(r'\s*' + RegExp.escape(variation.toLowerCase()) + r'\s*', unicode: true),
+          ' ',
+        );
+      }
+    });
+
+    for (String indicator in _priceIndicators) {
+      result = result.replaceAll(
+        RegExp(r'\s*' + RegExp.escape(indicator.toLowerCase()) + r'\s*', unicode: true),
+        ' ',
+      );
+    }
+
+    for (String filler in _fillerWords) {
+      result = result.replaceAll(
+        RegExp(r'\s*\b' + RegExp.escape(filler.toLowerCase()) + r'\b\s*', unicode: true),
+        ' ',
+      );
+    }
+
+    result = result.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+    String? matchedProduct = _matchProductFromDatabase(result);
+    if (matchedProduct != null) {
+      return matchedProduct;
+    }
+
+    if (result.isNotEmpty) {
+      if (_isEnglishText(result)) {
+        result = result[0].toUpperCase() + result.substring(1);
+      }
+    }
+
+    return result.isEmpty ? 'Unknown Product' : result;
   }
 
   /// Extract all numeric values from text (including Bangla number words)
@@ -687,75 +773,6 @@ class VoiceParserProduct {
     return longestMatch;
   }
 
-  /// Extract product name by removing unit, numbers, and filler words
-  static String _extractProductName(String text, String? detectedUnit) {
-    String result = text;
-
-    // Remove detected unit and its variations
-    if (detectedUnit != null) {
-      List<String> variations = _unitVariations[detectedUnit] ?? [];
-      for (String variation in variations) {
-        RegExp regex = RegExp(
-          r'\s*\b' + RegExp.escape(variation) + r'\b\s*',
-          caseSensitive: false,
-          unicode: true,
-        );
-        result = result.replaceAll(regex, ' ');
-      }
-    }
-
-    // Remove price indicators
-    for (String indicator in _priceIndicators) {
-      RegExp regex = RegExp(
-        r'\s*\b' + RegExp.escape(indicator) + r'\b\s*',
-        caseSensitive: false,
-        unicode: true,
-      );
-      result = result.replaceAll(regex, ' ');
-    }
-
-    // Remove English numbers
-    result = result.replaceAll(RegExp(r'\s*\b\d+\.?\d*\b\s*'), ' ');
-
-    // Remove Bangla number words
-    _banglaNumberWords.keys.forEach((numberWord) {
-      RegExp regex = RegExp(
-        r'\s*\b' + RegExp.escape(numberWord) + r'\b\s*',
-        caseSensitive: false,
-        unicode: true,
-      );
-      result = result.replaceAll(regex, ' ');
-    });
-
-    // Remove English number words
-    _englishNumberWords.keys.forEach((number) {
-      RegExp regex = RegExp(
-        r'\s*\b' + RegExp.escape(number) + r'\b\s*',
-        caseSensitive: false,
-      );
-      result = result.replaceAll(regex, ' ');
-    });
-
-    // Remove filler words
-    for (String filler in _fillerWords) {
-      RegExp regex = RegExp(
-        r'\s*\b' + RegExp.escape(filler) + r'\b\s*',
-        caseSensitive: false,
-        unicode: true,
-      );
-      result = result.replaceAll(regex, ' ');
-    }
-
-    // Clean up extra spaces
-    result = result.trim().replaceAll(RegExp(r'\s+'), ' ');
-
-    // Capitalize first letter only if it's English text
-    if (result.isNotEmpty && _isEnglishText(result)) {
-      result = result[0].toUpperCase() + result.substring(1).toLowerCase();
-    }
-
-    return result.isEmpty ? 'Unknown Product' : result;
-  }
 
   /// Check if text is primarily English
   static bool _isEnglishText(String text) {
