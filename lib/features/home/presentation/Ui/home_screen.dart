@@ -1,10 +1,122 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../stock/presentation/ui/stock_screen.dart';
 import '../../../sales/presentation/ui/sales_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String? companyName;
+  int? companyId;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompanyInfo();
+  }
+
+  Future<void> _loadCompanyInfo() async {
+    final name = await StorageService.getCompanyName();
+    final id = await StorageService.getCompanyId();
+
+    setState(() {
+      companyName = name;
+      companyId = id;
+      isLoading = false;
+    });
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE74C3C).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.logout,
+                color: Color(0xFFE74C3C),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'লগআউট',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'বাতিল',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE74C3C),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'লগআউট',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Clear all SharedPreferences data
+      await StorageService.clearAll();
+
+      if (context.mounted) {
+        // Close loading dialog
+        Navigator.pop(context);
+        // Navigate to company check page and remove all previous routes
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,21 +131,23 @@ class HomeScreen extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.account_balance, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.account_balance, size: 20),
+              const SizedBox(width: 8),
               Text(
-                'Sale Book',
-                style: TextStyle(
+                isLoading
+                    ? 'Loading...'
+                    : (companyName ?? 'Sale Book'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                   color: Colors.black,
                 ),
               ),
-              SizedBox(width: 8),
-              Icon(Icons.expand_more, size: 20),
+              const SizedBox(width: 8),
+              const Icon(Icons.expand_more, size: 20),
             ],
           ),
         ),
@@ -80,7 +194,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Section
+              // Header Section with Company Info
               Text(
                 'গুড মর্নিং',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -97,6 +211,78 @@ class HomeScreen extends StatelessWidget {
                   fontSize: 28,
                 ),
               ),
+
+              // Company Info Card
+              if (!isLoading && companyName != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFF5A52D5)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.business,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'কোম্পানি',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              companyName!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'ID: $companyId',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               // Feature Cards Section
@@ -143,7 +329,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child:                             Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -376,6 +562,14 @@ class HomeScreen extends StatelessWidget {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 8),
+          _buildMoreOptionTile(
+            context,
+            icon: Icons.logout,
+            title: 'লগআউট',
+            color: const Color(0xFFE74C3C),
+            onTap: () => _logout(context),
           ),
         ],
       ),
