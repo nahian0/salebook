@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:salebook/features/home/presentation/Ui/home_screen.dart';
 import 'features/createCompany/presentation/company_check_page.dart';
 import 'features/createCompany/presentation/create_company_page.dart';
-
 
 void main() {
   runApp(const MyApp());
@@ -13,8 +13,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Your App',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

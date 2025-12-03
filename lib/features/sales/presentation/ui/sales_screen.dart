@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../widgets/add_sales_entry_screen.dart';
+import 'add_sales_entry_screen.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
