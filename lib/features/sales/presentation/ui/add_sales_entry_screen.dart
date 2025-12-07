@@ -1,11 +1,13 @@
+// lib/features/sales/presentation/pages/add_sales_entry_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:salebook/features/sales/presentation/widgets/product_form.dart';
-import 'package:salebook/features/sales/presentation/widgets/product_list.dart';
+import '../widgets/product_form.dart';
+import '../widgets/product_list.dart';
 import '../widgets/voice_button_section.dart';
+import '../widgets/customer_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controller/sales_entry_controller.dart';
-import '../widgets/customer_section.dart';
 
 class AddSalesEntryScreen extends StatelessWidget {
   const AddSalesEntryScreen({super.key});
@@ -48,7 +50,7 @@ class AddSalesEntryScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // Products List - FIXED with Obx
+                      // Products List
                       Obx(() {
                         if (controller.products.isEmpty) {
                           return const SizedBox.shrink();
@@ -61,10 +63,9 @@ class AddSalesEntryScreen extends StatelessWidget {
                         );
                       }),
 
-                      // Product Form - FIXED with Obx
+                      // Product Form
                       Obx(() {
-                        if (controller.selectedCustomer.value == null ||
-                            controller.selectedCustomer.value!.isEmpty) {
+                        if (controller.selectedCustomer.value == null) {
                           return const SizedBox.shrink();
                         }
                         return ProductForm(controller: controller);

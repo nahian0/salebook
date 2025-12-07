@@ -1,94 +1,30 @@
 import 'package:flutter/material.dart';
-import '../data/company_repository.dart';
+import 'package:get/get.dart';
+import '../controller/auth_controller.dart';
 
-class CreateCompanyPage extends StatefulWidget {
+class CreateCompanyPage extends StatelessWidget {
   const CreateCompanyPage({Key? key}) : super(key: key);
 
   @override
-  State<CreateCompanyPage> createState() => _CreateCompanyPageState();
-}
-
-class _CreateCompanyPageState extends State<CreateCompanyPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final CompanyRepository _repository = CompanyRepository();
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _createCompany() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final success = await _repository.createCompany(
-        name: _nameController.text,
-        phoneNo: _phoneController.text,
-        description: _descriptionController.text,
-      );
-
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('ইউজার সফলভাবে তৈরি হয়েছে!'),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-        // Navigate to home after successful creation
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('ইউজার তৈরি করতে ব্যর্থ'),
-              backgroundColor: const Color(0xFFE74C3C),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ত্রুটি: $e'),
-            backgroundColor: const Color(0xFFE74C3C),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    print('🔧 Building CreateCompanyPage');
+
+    // Find existing controller
+    final AuthController controller = Get.find<AuthController>();
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final descriptionController = TextEditingController();
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F1),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color(0xFFE8DCC8),
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => controller.goToLogin(),
+        ),
         title: Row(
           children: [
             Container(
@@ -208,7 +144,7 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
                   ],
                 ),
                 child: Form(
-                  key: _formKey,
+                  key: formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -223,7 +159,7 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
 
                       // Name Field
                       _buildInputField(
-                        controller: _nameController,
+                        controller: nameController,
                         label: 'ইউজার নাম *',
                         hint: 'আপনার নাম লিখুন',
                         icon: Icons.person_outline,
@@ -239,18 +175,27 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
 
                       // Phone Field
                       _buildInputField(
-                        controller: _phoneController,
-                        label: 'ফোন নম্বর',
-                        hint: 'আপনার ফোন নম্বর লিখুন',
+                        controller: phoneController,
+                        label: 'ফোন নম্বর *',
+                        hint: '০১৭xxxxxxxx',
                         icon: Icons.phone_outlined,
                         color: const Color(0xFF4CAF50),
                         keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'অনুগ্রহ করে ফোন নম্বর লিখুন';
+                          }
+                          if (value.length < 11) {
+                            return 'সঠিক ফোন নম্বর লিখুন';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
 
                       // Description Field
                       _buildInputField(
-                        controller: _descriptionController,
+                        controller: descriptionController,
                         label: 'বিবরণ',
                         hint: 'অতিরিক্ত তথ্য (ঐচ্ছিক)',
                         icon: Icons.description_outlined,
@@ -260,11 +205,21 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
                       const SizedBox(height: 24),
 
                       // Create Button
-                      SizedBox(
+                      Obx(() => SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _createCompany,
+                          onPressed: controller.isLoading.value
+                              ? null
+                              : () {
+                            if (formKey.currentState!.validate()) {
+                              controller.createCompany(
+                                name: nameController.text,
+                                phone: phoneController.text,
+                                desc: descriptionController.text,
+                              );
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6C63FF),
                             disabledBackgroundColor: const Color(0xFF6C63FF).withOpacity(0.6),
@@ -274,7 +229,7 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
                             elevation: 0,
                             shadowColor: const Color(0xFF6C63FF).withOpacity(0.3),
                           ),
-                          child: _isLoading
+                          child: controller.isLoading.value
                               ? const SizedBox(
                             height: 24,
                             width: 24,
@@ -283,21 +238,56 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                              : Row(
+                              : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.check_circle_outline,
                                 color: Colors.white,
                                 size: 22,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Text(
                                 'ইউজার তৈরি করুন',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
+
+                      const SizedBox(height: 16),
+
+                      // Back to Login Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: TextButton(
+                          onPressed: () => controller.goToLogin(),
+                          style: TextButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.arrow_back,
+                                color: Color(0xFF6C63FF),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'লগইন পেজে ফিরে যান',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade700,
                                 ),
                               ),
                             ],
@@ -345,7 +335,7 @@ class _CreateCompanyPageState extends State<CreateCompanyPage> {
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,

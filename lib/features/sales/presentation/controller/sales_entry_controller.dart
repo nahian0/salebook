@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/services/speech_services.dart';
 import '../../../../core/text parser/voice_parser_product_updated.dart';
+import '../../data/model/party_model.dart';
+import '../../data/repository/party_repository.dart';
 
 class SalesEntryController extends GetxController with GetTickerProviderStateMixin {
   // Controllers
@@ -12,12 +14,16 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final paidController = TextEditingController();
 
   // Observable state
-  final selectedCustomer = Rxn<String>();
-  final customerList = <String>[].obs;
+  final selectedCustomer = Rxn<PartyModel>();
+  final customerList = <PartyModel>[].obs;
   final selectedUnit = 'লিটার'.obs;
   final products = <Map<String, dynamic>>[].obs;
   final totalAmount = 0.0.obs;
   final isListening = false.obs;
+  final isLoadingParties = false.obs;
+
+  // Repository
+  final PartyRepository _partyRepository = PartyRepository();
 
   // Speech service
   final HybridSpeechService _speechService = HybridSpeechService();
@@ -43,6 +49,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     super.onInit();
     _initSpeech();
     _initAnimations();
+    _loadParties();
     paidController.addListener(() => update());
   }
 
@@ -75,6 +82,61 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     }
   }
 
+  Future<void> _loadParties() async {
+    try {
+      isLoadingParties.value = true;
+      final response = await _partyRepository.getAllParties();
+      customerList.value = response.data;
+    } catch (e) {
+      Get.snackbar(
+        'ত্রুটি',
+        'পার্টি লোড করতে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingParties.value = false;
+    }
+  }
+
+  Future<void> createNewParty(String partyName) async {
+    try {
+      isLoadingParties.value = true;
+      final newParty = await _partyRepository.createParty(partyName);
+
+      if (newParty != null) {
+        // Reload parties to get the updated list
+        await _loadParties();
+
+        // Select the newly created party
+        selectedCustomer.value = customerList.firstWhere(
+              (party) => party.name == partyName,
+          orElse: () => newParty,
+        );
+
+        Get.snackbar(
+          'সফল',
+          'নতুন পার্টি যোগ হয়েছে: $partyName',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'ত্রুটি',
+        'পার্টি তৈরি করতে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingParties.value = false;
+    }
+  }
+
   Future<void> toggleVoiceInput() async {
     if (isListening.value) {
       await _stopListening();
@@ -91,7 +153,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     waveController.repeat();
 
     String lastRecognizedText = '';
-    bool hasCustomer = selectedCustomer.value != null && selectedCustomer.value!.isNotEmpty;
+    bool hasCustomer = selectedCustomer.value != null;
 
     await _speechService.startListening(
       languageCode: currentLocaleId,
@@ -130,25 +192,31 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     waveController.reset();
   }
 
-  void _handleListeningStop(String recognizedText, bool hadCustomer) {
+  void _handleListeningStop(String recognizedText, bool hadCustomer) async {
     if (recognizedText.isEmpty) return;
 
     if (!hadCustomer) {
-      // Process as customer name
+      // Process as customer name - check if exists or create new
       customerSearchController.text = recognizedText;
-      if (!customerList.contains(recognizedText)) {
-        customerList.add(recognizedText);
-      }
-      selectedCustomer.value = recognizedText;
 
-      Get.snackbar(
-        'সফল',
-        'গ্রাহক যোগ হয়েছে: $recognizedText',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
+      final existingParty = customerList.firstWhereOrNull(
+            (party) => party.name.toLowerCase() == recognizedText.toLowerCase(),
       );
+
+      if (existingParty != null) {
+        selectedCustomer.value = existingParty;
+        Get.snackbar(
+          'সফল',
+          'গ্রাহক নির্বাচিত: ${existingParty.name}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        // Create new party
+        await createNewParty(recognizedText);
+      }
     } else {
       // Process as product input
       final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
@@ -276,7 +344,8 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     }
 
     Get.back(result: {
-      'customerName': selectedCustomer.value,
+      'customerId': selectedCustomer.value!.id,
+      'customerName': selectedCustomer.value!.name,
       'products': products.toList(),
       'totalAmount': totalAmount.value,
       'paidAmount': getPaidAmount(),
@@ -286,7 +355,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   }
 
   String getListeningPrompt() {
-    if (selectedCustomer.value == null || selectedCustomer.value!.isEmpty) {
+    if (selectedCustomer.value == null) {
       return 'গ্রাহকের নাম বলুন...';
     } else {
       return 'পণ্যের তথ্য বলুন...';
@@ -294,7 +363,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   }
 
   String getVoiceHintText() {
-    if (selectedCustomer.value == null || selectedCustomer.value!.isEmpty) {
+    if (selectedCustomer.value == null) {
       return 'গ্রাহকের নাম বলতে চাপুন';
     } else {
       return 'পণ্য যোগ করতে চাপুন';

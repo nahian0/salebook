@@ -27,6 +27,7 @@ dev_dependencies:
   dio: ^5.4.0
   shared_preferences: ^2.2.2
   get: ^4.6.6
+  device_info_plus: ^10.1.0
 
 flutter:
   uses-material-design: true

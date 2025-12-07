@@ -1,6 +1,8 @@
+// lib/features/sales/presentation/widgets/customer_section.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../controller/sales_entry_controller.dart';
 
 class CustomerSection extends StatelessWidget {
@@ -36,9 +38,8 @@ class CustomerSection extends StatelessWidget {
                 ),
               ),
               Obx(() {
-                // MUST access the observable first
                 final customer = controller.selectedCustomer.value;
-                if (customer == null || customer.isEmpty) {
+                if (customer == null) {
                   return const SizedBox.shrink();
                 }
                 return TextButton.icon(
@@ -63,9 +64,28 @@ class CustomerSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Obx(() {
-            // Access observables at the start
             final selectedCustomer = controller.selectedCustomer.value;
+            final isLoading = controller.isLoadingParties.value;
             final customerList = controller.customerList.toList();
+
+            if (isLoading) {
+              return Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
 
             return Container(
               height: 48,
@@ -76,8 +96,8 @@ class CustomerSection extends StatelessWidget {
                 border: Border.all(color: AppColors.borderLight),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedCustomer,
+                child: DropdownButton<int>(
+                  value: selectedCustomer?.id,
                   hint: const Text(
                     'নাম লিখুন বা ভয়েস বাটন চাপুন',
                     style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
@@ -85,9 +105,9 @@ class CustomerSection extends StatelessWidget {
                   isExpanded: true,
                   items: customerList.map((customer) {
                     return DropdownMenuItem(
-                      value: customer,
+                      value: customer.id,
                       child: Text(
-                        customer,
+                        customer.name,
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.textPrimary,
@@ -96,7 +116,14 @@ class CustomerSection extends StatelessWidget {
                     );
                   }).toList(),
                   onChanged: (value) {
-                    controller.selectedCustomer.value = value;
+                    if (value != null) {
+                      final selected = customerList.firstWhereOrNull(
+                            (customer) => customer.id == value,
+                      );
+                      if (selected != null) {
+                        controller.selectedCustomer.value = selected;
+                      }
+                    }
                   },
                   icon: const Icon(
                     Icons.arrow_drop_down,

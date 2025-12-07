@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:salebook/features/home/presentation/Ui/home_screen.dart';
-import 'features/auth/presentation/ui/login_page.dart';
-import 'features/auth/presentation/ui/company_check_page.dart';
-import 'features/auth/presentation/ui/create_company_page.dart';
-import 'features/auth/presentation/ui/verify_code_page.dart';
+import '../features/auth/presentation/ui/company_check_page.dart';
+import '../features/auth/presentation/ui/create_company_page.dart';
+import '../features/auth/presentation/ui/login_page.dart';
+import '../features/auth/presentation/ui/verify_code_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -41,6 +41,7 @@ class MyApp extends StatelessWidget {
           page: () => const CreateCompanyPage(),
           transition: Transition.rightToLeft,
         ),
+        // ADD THIS ROUTE
         GetPage(
           name: '/verify-code',
           page: () => const VerifyCodePage(),
