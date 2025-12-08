@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/services/speech_services.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/text parser/voice_parser_product_updated.dart';
 import '../../data/model/party_model.dart';
 import '../../data/repository/party_repository.dart';
+import '../../data/repository/sales_repository.dart';
 
 class SalesEntryController extends GetxController with GetTickerProviderStateMixin {
   // Controllers
@@ -21,9 +23,11 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final totalAmount = 0.0.obs;
   final isListening = false.obs;
   final isLoadingParties = false.obs;
+  final isSaving = false.obs;
 
   // Repository
   final PartyRepository _partyRepository = PartyRepository();
+  final SalesRepository _salesRepository = SalesRepository();
 
   // Speech service
   final HybridSpeechService _speechService = HybridSpeechService();
@@ -44,13 +48,37 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     'বক্স',
   ];
 
+  // Company and user IDs - loaded from storage
+  int? companyId;
+  int? userId;
+
   @override
   void onInit() {
     super.onInit();
+    _initializeController();
     _initSpeech();
     _initAnimations();
-    _loadParties();
     paidController.addListener(() => update());
+  }
+
+  Future<void> _initializeController() async {
+    // Load company ID and user ID from storage
+    companyId = await StorageService.getCompanyId();
+   // userId = await StorageService.getUserId();
+
+    if (companyId == null) {
+      Get.snackbar(
+        'ত্রুটি',
+        'কোম্পানি তথ্য পাওয়া যায়নি',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Load parties after getting company ID
+    await _loadParties();
   }
 
   void _initAnimations() {
@@ -106,10 +134,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       final newParty = await _partyRepository.createParty(partyName);
 
       if (newParty != null) {
-        // Reload parties to get the updated list
         await _loadParties();
-
-        // Select the newly created party
         selectedCustomer.value = customerList.firstWhere(
               (party) => party.name == partyName,
           orElse: () => newParty,
@@ -174,7 +199,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       },
     );
 
-    // Auto-stop after 5 seconds
     Future.delayed(const Duration(seconds: 5), () async {
       if (isListening.value) {
         await _stopListening();
@@ -196,7 +220,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     if (recognizedText.isEmpty) return;
 
     if (!hadCustomer) {
-      // Process as customer name - check if exists or create new
       customerSearchController.text = recognizedText;
 
       final existingParty = customerList.firstWhereOrNull(
@@ -214,11 +237,9 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
           duration: const Duration(seconds: 2),
         );
       } else {
-        // Create new party
         await createNewParty(recognizedText);
       }
     } else {
-      // Process as product input
       final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
 
       if (parsedData['productName']?.isNotEmpty ?? false) {
@@ -293,7 +314,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
 
     _calculateTotal();
 
-    // Clear form
     productController.clear();
     quantityController.clear();
     priceController.clear();
@@ -331,11 +351,16 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     customerSearchController.clear();
   }
 
-  void saveSalesEntry() {
+  String _generateSaleNo() {
+    final now = DateTime.now();
+    return 'SAL${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> saveSalesEntry() async {
     if (selectedCustomer.value == null || products.isEmpty) {
       Get.snackbar(
         'ত্রুটি',
-        'অন্তত একটি পণ্য যোগ করুন',
+        'গ্রাহক নির্বাচন করুন এবং অন্তত একটি পণ্য যোগ করুন',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -343,15 +368,92 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       return;
     }
 
-    Get.back(result: {
-      'customerId': selectedCustomer.value!.id,
-      'customerName': selectedCustomer.value!.name,
-      'products': products.toList(),
-      'totalAmount': totalAmount.value,
-      'paidAmount': getPaidAmount(),
-      'dueAmount': getDueAmount(),
-      'timestamp': DateTime.now(),
-    });
+    // Check if company ID is available
+    if (companyId == null) {
+      Get.snackbar(
+        'ত্রুটি',
+        'কোম্পানি তথ্য পাওয়া যায়নি',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    try {
+      isSaving.value = true;
+
+      // Prepare sales details
+      final salesDetails = products.map((product) {
+        return {
+          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']} @ ${product['price']}',
+          'amount': product['total'],
+          'remarks': '',
+        };
+      }).toList();
+
+      // Call API with companyId from storage
+      final result = await _salesRepository.createSale(
+        companyId: companyId!,
+        salePartyId: selectedCustomer.value!.id,
+        salePartyName: selectedCustomer.value!.name,
+        saleNo: _generateSaleNo(),
+        saleDate: DateTime.now(),
+        totalAmount: totalAmount.value,
+        depositAmount: getPaidAmount(),
+        salesDetails: salesDetails,
+        remarks: '',
+      );
+
+      // Hide loading immediately after API call
+      isSaving.value = false;
+
+      if (result['success'] == true) {
+        // Prepare result data
+        final resultData = {
+          'success': true,
+          'customerId': selectedCustomer.value!.id,
+          'customerName': selectedCustomer.value!.name,
+          'products': products.toList(),
+          'totalAmount': totalAmount.value,
+          'paidAmount': getPaidAmount(),
+          'dueAmount': getDueAmount(),
+          'timestamp': DateTime.now(),
+        };
+
+        // Show success message and navigate back
+        Get.back(result: resultData);
+
+        // Show snackbar after navigation
+        Get.snackbar(
+          'সফল',
+          'বিক্রয় সংরক্ষিত হয়েছে',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        Get.snackbar(
+          'ত্রুটি',
+          'বিক্রয় সংরক্ষণ ব্যর্থ হয়েছে',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      isSaving.value = false;
+
+      Get.snackbar(
+        'ত্রুটি',
+        'বিক্রয় সংরক্ষণে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   String getListeningPrompt() {

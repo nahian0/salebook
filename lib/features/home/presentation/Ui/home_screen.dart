@@ -1,8 +1,10 @@
+// lib/features/home/presentation/Ui/home_screen.dart
+
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:get/get.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../stock/presentation/ui/stock_screen.dart';
-import '../../../sales/presentation/ui/sales_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -112,8 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (context.mounted) {
         // Close loading dialog
         Navigator.pop(context);
-        // Navigate to company check page and remove all previous routes
-        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        // Navigate to company check page using GetX route
+        Get.offAllNamed(AppRoutes.initial);
       }
     }
   }
@@ -166,11 +168,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const Icon(Icons.notifications_none, color: Colors.black),
               ),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Notifications'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                Get.snackbar(
+                  'বিজ্ঞপ্তি',
+                  'Notifications',
+                  snackPosition: SnackPosition.BOTTOM,
                 );
               },
             ),
@@ -384,12 +385,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'বিক্রয় সংরক্ষণ',
                           color: const Color(0xFFE74C3C),
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SalesScreen(),
-                              ),
-                            );
+                            // Using AppRoutes for navigation
+                            Get.toNamed(AppRoutes.sales);
                           },
                         ),
                         _buildFeatureCard(
@@ -398,11 +395,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'বিক্রয় প্রতিবেদন',
                           color: const Color(0xFFF39C12),
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('বিক্রয় প্রতিবেদন'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            Get.snackbar(
+                              'শীঘ্রই আসছে',
+                              'বিক্রয় প্রতিবেদন',
+                              snackPosition: SnackPosition.BOTTOM,
                             );
                           },
                         ),
@@ -412,11 +408,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'বিশ্লেষণ ও রিপোর্ট',
                           color: const Color(0xFF3498DB),
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('বিশ্লেষণ ও রিপোর্ট'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            Get.snackbar(
+                              'শীঘ্রই আসছে',
+                              'বিশ্লেষণ ও রিপোর্ট',
+                              snackPosition: SnackPosition.BOTTOM,
                             );
                           },
                         ),
@@ -525,11 +520,10 @@ class _HomeScreenState extends State<HomeScreen> {
             title: 'সেটিংস',
             color: const Color(0xFF9B59B6),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('সেটিংস'),
-                  behavior: SnackBarBehavior.floating,
-                ),
+              Get.snackbar(
+                'শীঘ্রই আসছে',
+                'সেটিংস',
+                snackPosition: SnackPosition.BOTTOM,
               );
             },
           ),
@@ -540,11 +534,10 @@ class _HomeScreenState extends State<HomeScreen> {
             title: 'প্রোফাইল',
             color: const Color(0xFF1ABC9C),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('প্রোফাইল'),
-                  behavior: SnackBarBehavior.floating,
-                ),
+              Get.snackbar(
+                'শীঘ্রই আসছে',
+                'প্রোফাইল',
+                snackPosition: SnackPosition.BOTTOM,
               );
             },
           ),
@@ -555,11 +548,10 @@ class _HomeScreenState extends State<HomeScreen> {
             title: 'সাহায্য ও সহায়তা',
             color: const Color(0xFFF39C12),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('সাহায্য ও সহায়তা'),
-                  behavior: SnackBarBehavior.floating,
-                ),
+              Get.snackbar(
+                'শীঘ্রই আসছে',
+                'সাহায্য ও সহায়তা',
+                snackPosition: SnackPosition.BOTTOM,
               );
             },
           ),

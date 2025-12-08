@@ -1,7 +1,10 @@
+// lib/features/auth/presentation/controllers/auth_controller.dart
+
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
+import '../../../../routes/app_routes.dart';
 import '../../data/repositories/company_repository.dart';
 import '../../../../core/utils/dialog_utils.dart';
 
@@ -45,7 +48,7 @@ class AuthController extends GetxController {
     print('🔍 Checking login status...');
 
     final currentRoute = Get.currentRoute;
-    if (currentRoute == '/verify-code') {
+    if (currentRoute == AppRoutes.verifyCode) {
       print('⚠️ On verify code page, skipping login check');
       return;
     }
@@ -66,15 +69,15 @@ class AuthController extends GetxController {
 
       if (loggedIn) {
         print('📍 Navigating to home...');
-        Get.offAllNamed('/home');
+        Get.offAllNamed(AppRoutes.home);
       } else {
         print('📍 Navigating to login...');
-        Get.offAllNamed('/login');
+        Get.offAllNamed(AppRoutes.login);
       }
     } catch (e) {
       print('❌ Error checking status: $e');
       errorMessage.value = 'ত্রুটি: $e';
-      Get.offAllNamed('/login');
+      Get.offAllNamed(AppRoutes.login);
     } finally {
       isLoading.value = false;
     }
@@ -111,7 +114,7 @@ class AuthController extends GetxController {
         isLoggedIn.value = true;
         _showSuccess('সফলভাবে লগইন হয়েছে!');
         await Future.delayed(const Duration(milliseconds: 500));
-        Get.offAllNamed('/home');
+        Get.offAllNamed(AppRoutes.home);
       } else if (result.isDifferentDevice) {
         // FIXED: Now properly calling _handleDeviceRegistration
         _showDifferentDeviceDialog(
@@ -286,9 +289,9 @@ class AuthController extends GetxController {
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // FIXED: Properly navigate to verify-code page
+        // FIXED: Using AppRoutes for navigation
         print('📍 Navigating to verify-code page...');
-        Get.toNamed('/verify-code', arguments: {
+        Get.toNamed(AppRoutes.verifyCode, arguments: {
           'phone': phone,
           'deviceId': deviceId.value,
           'companyId': result.companyId,
@@ -331,7 +334,7 @@ class AuthController extends GetxController {
 
         await Future.delayed(const Duration(milliseconds: 500));
         print('📍 Navigating to home...');
-        Get.offAllNamed('/home');
+        Get.offAllNamed(AppRoutes.home);
       } else {
         _showError('যাচাইকরণ ব্যর্থ হয়েছে');
       }
@@ -407,7 +410,7 @@ class AuthController extends GetxController {
         isLoggedIn.value = true;
         _showSuccess('ইউজার সফলভাবে তৈরি হয়েছে!');
         await Future.delayed(const Duration(milliseconds: 500));
-        Get.offAllNamed('/home');
+        Get.offAllNamed(AppRoutes.home);
       } else {
         _showError('ইউজার তৈরি করতে ব্যর্থ');
       }
@@ -424,7 +427,7 @@ class AuthController extends GetxController {
       isLoading.value = true;
       await _repository.logout();
       isLoggedIn.value = false;
-      Get.offAllNamed('/login');
+      Get.offAllNamed(AppRoutes.login);
       _showSuccess('সফলভাবে লগআউট হয়েছে');
     } catch (e) {
       _showError('লগআউট ব্যর্থ: ${e.toString()}');
@@ -433,8 +436,8 @@ class AuthController extends GetxController {
     }
   }
 
-  void goToCreateCompany() => Get.toNamed('/create-company');
-  void goToLogin() => Get.offAllNamed('/login');
+  void goToCreateCompany() => Get.toNamed(AppRoutes.createCompany);
+  void goToLogin() => Get.offAllNamed(AppRoutes.login);
 
   void _showSuccess(String message) {
     Get.snackbar(

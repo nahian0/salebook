@@ -86,10 +86,43 @@ class AddSalesEntryScreen extends StatelessWidget {
             bottom: 0,
             child: VoiceButtonSection(controller: controller),
           ),
+
+          // Loading overlay
+          Obx(() {
+            if (!controller.isSaving.value) {
+              return const SizedBox.shrink();
+            }
+            return Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'সংরক্ষণ করা হচ্ছে...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       ),
       floatingActionButton: Obx(() {
-        if (controller.products.isEmpty || controller.isListening.value) {
+        if (controller.products.isEmpty ||
+            controller.isListening.value ||
+            controller.isSaving.value) {
           return const SizedBox.shrink();
         }
         return FloatingActionButton.extended(

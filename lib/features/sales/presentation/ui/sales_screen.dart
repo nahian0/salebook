@@ -1,51 +1,32 @@
+// lib/features/sales/presentation/screens/sales_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/model/sales_model.dart';
+import '../controller/sales_controller.dart';
 import 'add_sales_entry_screen.dart';
 
-class SalesScreen extends StatefulWidget {
+class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
 
-  @override
-  State<SalesScreen> createState() => _SalesScreenState();
-}
+  // Get the controller
+  SalesController get controller => Get.find<SalesController>();
 
-class _SalesScreenState extends State<SalesScreen> {
-  final List<Map<String, dynamic>> _salesEntries = [];
-  double _totalSalesAmount = 0.0;
+  void _navigateToAddSalesEntry(BuildContext context) async {
+    final result = await Get.to(() => const AddSalesEntryScreen());
 
-  @override
-  void initState() {
-    super.initState();
-  }
+    // Refresh the list when returning, regardless of result
+    // This ensures data is always fresh
+    print('Returned from AddSalesEntry with result: $result');
+    await controller.refreshSalesList();
 
-  void _navigateToAddSalesEntry() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddSalesEntryScreen(),
-      ),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _salesEntries.add(result);
-        _totalSalesAmount += result['totalAmount'] as double;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('বিক্রয় যোগ করা হয়েছে: ৳${(result['totalAmount'] as double).toStringAsFixed(2)}'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+    if (result != null && result['success'] == true) {
+      print('Sale was successful, list refreshed');
     }
   }
 
-  void _showHelpDialog() {
+  void _showHelpDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -60,7 +41,7 @@ class _SalesScreenState extends State<SalesScreen> {
             color: AppColors.textPrimary,
           ),
         ),
-        content: Text(
+        content: const Text(
           '• + বোতাম ট্যাপ করে নতুন বিক্রয় যোগ করুন\n'
               '• ভয়েস বা ড্রপডাউন ব্যবহার করে গ্রাহক নির্বাচন করুন\n'
               '• প্রতিটি গ্রাহকের জন্য একাধিক পণ্য যোগ করুন\n'
@@ -82,7 +63,7 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  void _deleteSalesEntry(int index) {
+  void _deleteSalesEntry(BuildContext context, int saleId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -109,19 +90,8 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                _totalSalesAmount -= _salesEntries[index]['totalAmount'] as double;
-                _salesEntries.removeAt(index);
-              });
+              controller.deleteSalesEntry(saleId);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('বিক্রয় মুছে ফেলা হয়েছে'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.error,
-                  duration: Duration(seconds: 2),
-                ),
-              );
             },
             child: const Text(
               'মুছুন',
@@ -133,7 +103,7 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  void _viewSalesDetails(Map<String, dynamic> sale) {
+  void _viewSalesDetails(BuildContext context, SalesModel sale) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -147,13 +117,13 @@ class _SalesScreenState extends State<SalesScreen> {
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.primary, AppColors.primaryDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: Row(
                   children: [
@@ -172,10 +142,18 @@ class _SalesScreenState extends State<SalesScreen> {
                             ),
                           ),
                           Text(
-                            sale['customerName'],
+                            sale.salePartyName,
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            sale.saleNo,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white60,
                             ),
                           ),
                         ],
@@ -193,9 +171,9 @@ class _SalesScreenState extends State<SalesScreen> {
                 child: ListView.builder(
                   shrinkWrap: true,
                   padding: const EdgeInsets.all(20),
-                  itemCount: (sale['products'] as List).length,
+                  itemCount: sale.salSalesDetails.length,
                   itemBuilder: (context, index) {
-                    final product = (sale['products'] as List)[index];
+                    final detail = sale.salSalesDetails[index];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
@@ -224,26 +202,28 @@ class _SalesScreenState extends State<SalesScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  product['productName'],
+                                  detail.productDescription,
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${product['quantity']} ${product['unit']} × ৳${product['price'].toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
+                                if (detail.remarks != null && detail.remarks!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    detail.remarks!,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
                           Text(
-                            '৳${product['total'].toStringAsFixed(2)}',
+                            '৳${detail.amount.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -259,7 +239,7 @@ class _SalesScreenState extends State<SalesScreen> {
               // Total
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.background,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
@@ -275,7 +255,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       ),
                     ),
                     Text(
-                      '৳${sale['totalAmount'].toStringAsFixed(2)}',
+                      '৳${sale.totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -326,7 +306,7 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
             child: IconButton(
               icon: const Icon(Icons.help_outline, color: AppColors.textPrimary),
-              onPressed: _showHelpDialog,
+              onPressed: () => _showHelpDialog(context),
             ),
           ),
         ],
@@ -334,11 +314,11 @@ class _SalesScreenState extends State<SalesScreen> {
       body: Column(
         children: [
           // Sales Header Card
-          Container(
+          Obx(() => Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [AppColors.primary, AppColors.primaryDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -368,7 +348,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '৳${_totalSalesAmount.toStringAsFixed(2)}',
+                      '৳${controller.totalSalesAmount.value.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
@@ -391,170 +371,245 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
               ],
             ),
-          ),
+          )),
 
           // Sales List Header
-          Padding(
+          Obx(() => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'আজকের বিক্রয় (${_salesEntries.length})',
+                  'বিক্রয়ের তালিকা (${controller.salesList.length})',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
+                if (!controller.isLoading.value)
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: AppColors.primary),
+                    onPressed: controller.refreshSalesList,
+                  ),
               ],
             ),
-          ),
+          )),
           const SizedBox(height: 12),
 
           // Sales List
           Expanded(
-            child: _salesEntries.isEmpty
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 80,
-                    color: Colors.grey[300],
+            child: Obx(() {
+              // Loading State
+              if (controller.isLoading.value) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'এখনো কোনো বিক্রয় নেই',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'আপনার প্রথম বিক্রয় যোগ করতে + বোতাম ট্যাপ করুন',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _salesEntries.length,
-              itemBuilder: (context, index) {
-                final sale = _salesEntries[index];
-                final products = sale['products'] as List;
+                );
+              }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderLight),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+              // Error State
+              if (controller.errorMessage.value.isNotEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 80,
+                        color: Colors.red[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'ত্রুটি',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          controller.errorMessage.value,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: controller.refreshSalesList,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('পুনরায় চেষ্টা করুন'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => _viewSalesDetails(sale),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.person_outline,
-                                color: AppColors.primary,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    sale['customerName'],
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${products.length} পণ্য',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                );
+              }
+
+              // Empty State
+              if (controller.salesList.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 80,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'এখনো কোনো বিক্রয় নেই',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'আপনার প্রথম বিক্রয় যোগ করতে + বোতাম ট্যাপ করুন',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Success State - Sales List
+              return RefreshIndicator(
+                onRefresh: controller.refreshSalesList,
+                color: AppColors.primary,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: controller.salesList.length,
+                  itemBuilder: (context, index) {
+                    final sale = controller.salesList[index];
+                    final salesDetails = sale.salSalesDetails;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.borderLight),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _viewSalesDetails(context, sale),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
                               children: [
-                                Text(
-                                  '৳${sale['totalAmount'].toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_outline,
                                     color: AppColors.primary,
+                                    size: 24,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                GestureDetector(
-                                  onTap: () => _deleteSalesEntry(index),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.errorLight,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Icon(
-                                      Icons.delete_outline,
-                                      color: AppColors.error,
-                                      size: 16,
-                                    ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        sale.salePartyName,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${salesDetails.length} পণ্য • ${sale.saleNo}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '৳${sale.totalAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () => _deleteSalesEntry(context, sale.id),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.errorLight,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.error,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              );
+            }),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToAddSalesEntry,
+        onPressed: () => _navigateToAddSalesEntry(context),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 4,
