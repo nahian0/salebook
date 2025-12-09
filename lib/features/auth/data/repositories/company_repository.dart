@@ -236,15 +236,13 @@ class CompanyRepository {
     try {
       final body = {
         'id': companyId,
-        'phoneNo': phoneNo,
         'deviceId': deviceId,
-        'verificationCode': verificationCode,
       };
 
       print('📤 Updating company device');
       print('📦 Request body: $body');
 
-      final response = await _dio.post('/Company/UpdateCompany', data: body);
+      final response = await _dio.post('/Company/UpdateCompanyDeviceId', data: body);
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         print('✅ Device updated successfully');

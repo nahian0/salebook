@@ -116,7 +116,6 @@ class AuthController extends GetxController {
         await Future.delayed(const Duration(milliseconds: 500));
         Get.offAllNamed(AppRoutes.home);
       } else if (result.isDifferentDevice) {
-        // FIXED: Now properly calling _handleDeviceRegistration
         _showDifferentDeviceDialog(
           phone: phone,
           message: result.message,
@@ -234,8 +233,7 @@ class AuthController extends GetxController {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Get.back(); // Close dialog first
-                        // FIXED: Now properly calling the registration handler
+                        Get.back();
                         _handleDeviceRegistration(phone);
                       },
                       style: ElevatedButton.styleFrom(
@@ -289,76 +287,13 @@ class AuthController extends GetxController {
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // FIXED: Using AppRoutes for navigation
         print('📍 Navigating to verify-code page...');
         Get.toNamed(AppRoutes.verifyCode, arguments: {
           'phone': phone,
           'deviceId': deviceId.value,
           'companyId': result.companyId,
+          'verificationCode':result.verificationCode
         });
-      } else {
-        _showError('কোড পাঠাতে ব্যর্থ হয়েছে');
-      }
-    } catch (e) {
-      DialogUtils.dismissDialog();
-      _showError('ত্রুটি: ${e.toString()}');
-    }
-  }
-
-  /// Verify code and update device
-  Future<void> verifyAndUpdateDevice({
-    required int companyId,
-    required String phoneNo,
-    required String deviceId,
-    required String verificationCode,
-  }) async {
-    if (isLoading.value) return;
-
-    try {
-      isLoading.value = true;
-      errorMessage.value = '';
-
-      print('📤 Verifying code and updating device');
-      print('📦 CompanyId: $companyId, Code: $verificationCode');
-
-      final success = await _repository.updateCompanyDevice(
-        companyId: companyId,
-        phoneNo: phoneNo,
-        deviceId: deviceId,
-        verificationCode: verificationCode,
-      );
-
-      if (success) {
-        isLoggedIn.value = true;
-        _showSuccess('ডিভাইস সফলভাবে নিবন্ধিত হয়েছে!');
-
-        await Future.delayed(const Duration(milliseconds: 500));
-        print('📍 Navigating to home...');
-        Get.offAllNamed(AppRoutes.home);
-      } else {
-        _showError('যাচাইকরণ ব্যর্থ হয়েছে');
-      }
-    } catch (e) {
-      _showError('ত্রুটি: ${e.toString()}');
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  /// Resend verification code
-  Future<void> resendVerificationCode(String phone, String deviceId) async {
-    try {
-      DialogUtils.showLoadingDialog(message: 'কোড পুনরায় পাঠানো হচ্ছে...');
-
-      final result = await _repository.sendVerificationCode(
-        phoneNo: phone,
-        deviceId: deviceId,
-      );
-
-      DialogUtils.dismissDialog();
-
-      if (result != null) {
-        _showSuccess('নতুন কোড পাঠানো হয়েছে!');
       } else {
         _showError('কোড পাঠাতে ব্যর্থ হয়েছে');
       }
@@ -465,20 +400,6 @@ class AuthController extends GetxController {
       margin: const EdgeInsets.all(16),
       duration: const Duration(seconds: 3),
       icon: const Icon(Icons.error, color: Colors.white),
-    );
-  }
-
-  void _showInfo(String message) {
-    Get.snackbar(
-      'তথ্য',
-      message,
-      backgroundColor: const Color(0xFF2196F3),
-      colorText: Colors.white,
-      snackPosition: SnackPosition.BOTTOM,
-      borderRadius: 12,
-      margin: const EdgeInsets.all(16),
-      duration: const Duration(seconds: 2),
-      icon: const Icon(Icons.info, color: Colors.white),
     );
   }
 

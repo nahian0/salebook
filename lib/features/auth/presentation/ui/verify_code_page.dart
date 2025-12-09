@@ -1,109 +1,22 @@
+// lib/features/auth/presentation/pages/verify_code_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../controller/auth_controller.dart';
+import '../controller/varify_code_controller.dart';
 
-class VerifyCodePage extends StatefulWidget {
+class VerifyCodePage extends StatelessWidget {
   const VerifyCodePage({Key? key}) : super(key: key);
 
   @override
-  State<VerifyCodePage> createState() => _VerifyCodePageState();
-}
-
-class _VerifyCodePageState extends State<VerifyCodePage> {
-  late final List<TextEditingController> codeControllers;
-  late final List<FocusNode> focusNodes;
-
-  // Store arguments in state to prevent rebuilds
-  late final String phone;
-  late final String deviceId;
-  late final int companyId;
-  late final String companyName;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Get arguments once and store them
-    final args = Get.arguments as Map<String, dynamic>?;
-    phone = args?['phone'] ?? '';
-    deviceId = args?['deviceId'] ?? '';
-    companyId = args?['companyId'] ?? 0;
-    companyName = args?['companyName'] ?? '';
-
-    // Debug print
-    print('📱 VerifyCodePage initialized with:');
-    print('   Phone: $phone');
-    print('   DeviceId: $deviceId');
-    print('   CompanyId: $companyId');
-    print('   CompanyName: $companyName');
-
-    // Initialize controllers and focus nodes
-    codeControllers = List.generate(4, (index) => TextEditingController());
-    focusNodes = List.generate(4, (index) => FocusNode());
-
-    // Auto-focus first field
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      focusNodes[0].requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    // Clean up controllers and focus nodes
-    for (var controller in codeControllers) {
-      controller.dispose();
-    }
-    for (var node in focusNodes) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  void _handleVerification(AuthController controller, String phone, String deviceId, int companyId) {
-    final code = codeControllers.map((c) => c.text).join();
-
-    print('🔍 _handleVerification called');
-    print('   Code entered: $code');
-    print('   Code length: ${code.length}');
-    print('   Phone: $phone');
-    print('   DeviceId: $deviceId');
-    print('   CompanyId: $companyId');
-
-    if (code.length != 4) {
-      print('❌ Code validation failed - length is ${code.length}');
-      Get.snackbar(
-        'ত্রুটি',
-        'অনুগ্রহ করে ৪ ডিজিটের কোড লিখুন',
-        backgroundColor: const Color(0xFFE74C3C),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        borderRadius: 12,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
-      );
-      return;
-    }
-
-    print('✅ Code validation passed - calling verifyAndUpdateDevice');
-
-    controller.verifyAndUpdateDevice(
-      companyId: companyId,
-      phoneNo: phone,
-      deviceId: deviceId,
-      verificationCode: code,
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final AuthController controller = Get.find<AuthController>();
+    // Initialize controller
+    final VerifyCodeController controller = Get.put(VerifyCodeController());
 
     return WillPopScope(
       onWillPop: () async {
-        // Clear loading state when going back
-        controller.isLoading.value = false;
-        return true;
+        controller.handleBackPress();
+        return false;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFFAF6F1),
@@ -112,10 +25,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
           backgroundColor: const Color(0xFFE8DCC8),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () {
-              controller.isLoading.value = false;
-              Get.back();
-            },
+            onPressed: () => controller.handleBackPress(),
           ),
           title: Row(
             children: [
@@ -179,7 +89,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                 const SizedBox(height: 12),
 
                 // Company Name
-                if (companyName.isNotEmpty) ...[
+                if (controller.companyName.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
@@ -187,7 +97,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      companyName,
+                      controller.companyName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -210,7 +120,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  phone,
+                  controller.phone,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -229,8 +139,8 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                       height: 70,
                       margin: const EdgeInsets.symmetric(horizontal: 6),
                       child: TextFormField(
-                        controller: codeControllers[index],
-                        focusNode: focusNodes[index],
+                        controller: controller.codeControllers[index],
+                        focusNode: controller.focusNodes[index],
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         maxLength: 1,
@@ -269,23 +179,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        onChanged: (value) {
-                          if (value.isNotEmpty && index < 3) {
-                            // Move to next field
-                            focusNodes[index + 1].requestFocus();
-                          } else if (value.isEmpty && index > 0) {
-                            // Move to previous field on backspace
-                            focusNodes[index - 1].requestFocus();
-                          }
-
-                          // Just unfocus keyboard when done, don't auto-submit
-                          if (index == 3 && value.isNotEmpty) {
-                            final code = codeControllers.map((c) => c.text).join();
-                            if (code.length == 4) {
-                              FocusScope.of(context).unfocus();
-                            }
-                          }
-                        },
+                        onChanged: (value) => controller.onCodeChanged(index, value, context),
                       ),
                     ),
                   ),
@@ -297,13 +191,7 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: controller.isLoading.value
-                        ? null
-                        : () {
-                      print('🔘 Verify button pressed!');
-                      print('   Loading state: ${controller.isLoading.value}');
-                      _handleVerification(controller, phone, deviceId, companyId);
-                    },
+                    onPressed: controller.isLoading.value ? null : () => controller.verifyCode(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6C63FF),
                       disabledBackgroundColor: const Color(0xFF6C63FF).withOpacity(0.6),
@@ -342,25 +230,65 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                     ),
                   ),
                 )),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Resend Code Button
-                Obx(() => TextButton(
-                  onPressed: controller.isLoading.value
-                      ? null
-                      : () {
-                    print('🔄 Resending verification code...');
-                    controller.resendVerificationCode(phone, deviceId);
-                  },
-                  child: Text(
-                    'কোড পুনরায় পাঠান',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: controller.isLoading.value ? Colors.grey.shade400 : Colors.grey.shade700,
-                    ),
-                  ),
-                )),
+                // Resend Code Section with Timer
+                Obx(() {
+                  final canResend = controller.canResend.value;
+                  final isLoading = controller.isLoading.value;
+
+                  return Column(
+                    children: [
+                      if (!canResend) ...[
+                        // Timer Display
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                color: Colors.grey.shade600,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'পুনরায় পাঠাতে অপেক্ষা করুন: ${controller.formattedTime}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // Resend Button
+                        TextButton.icon(
+                          onPressed: isLoading ? null : () => controller.resendCode(),
+                          icon: Icon(
+                            Icons.refresh,
+                            size: 20,
+                            color: isLoading ? Colors.grey.shade400 : const Color(0xFF6C63FF),
+                          ),
+                          label: Text(
+                            'কোড পুনরায় পাঠান',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: isLoading ? Colors.grey.shade400 : const Color(0xFF6C63FF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                }),
               ],
             ),
           ),
