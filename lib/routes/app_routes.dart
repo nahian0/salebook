@@ -5,9 +5,10 @@ import '../../features/auth/presentation/ui/login_page.dart';
 import '../../features/auth/presentation/ui/company_check_page.dart';
 import '../../features/auth/presentation/ui/create_company_page.dart';
 import '../../features/auth/presentation/ui/verify_code_page.dart';
-import '../../features/home/presentation/Ui/home_screen.dart';
+import '../../features/sales/presentation/ui/sales_screen.dart';
 import '../../features/sales/presentation/bindings/sales_binding.dart';
-import '../features/sales/presentation/ui/sales_screen.dart';
+import '../features/home/presentation/Ui/home_screen.dart';
+import '../features/home/presentation/home_binding.dart';
 
 class AppRoutes {
   // Route names
@@ -43,13 +44,13 @@ class AppRoutes {
     GetPage(
       name: home,
       page: () => const HomeScreen(),
+      binding: HomeBinding(), // Inject HomeController
       transition: Transition.fadeIn,
     ),
-    // Sales Route with Binding
     GetPage(
       name: sales,
       page: () => const SalesScreen(),
-      binding: SalesBinding(), // Automatically injects dependencies
+      binding: SalesBinding(), // Inject SalesController
       transition: Transition.rightToLeft,
     ),
   ];

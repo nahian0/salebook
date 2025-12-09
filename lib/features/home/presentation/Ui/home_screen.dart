@@ -1,124 +1,12 @@
-// lib/features/home/presentation/Ui/home_screen.dart
+// lib/features/home/presentation/ui/home_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../core/services/storage_service.dart';
-import '../../../../routes/app_routes.dart';
-import '../../../stock/presentation/ui/stock_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+import '../controller/home_controller.dart';
+
+class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  String? companyName;
-  int? companyId;
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCompanyInfo();
-  }
-
-  Future<void> _loadCompanyInfo() async {
-    final name = await StorageService.getCompanyName();
-    final id = await StorageService.getCompanyId();
-
-    setState(() {
-      companyName = name;
-      companyId = id;
-      isLoading = false;
-    });
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE74C3C).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.logout,
-                color: Color(0xFFE74C3C),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'লগআউট',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        content: const Text(
-          'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'বাতিল',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE74C3C),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'লগআউট',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      // Clear all SharedPreferences data
-      await StorageService.clearAll();
-
-      if (context.mounted) {
-        // Close loading dialog
-        Navigator.pop(context);
-        // Navigate to company check page using GetX route
-        Get.offAllNamed(AppRoutes.initial);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,15 +21,15 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Row(
+          child: Obx(() => Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.account_balance, size: 20),
+              const Icon(Icons.person, size: 20),
               const SizedBox(width: 8),
               Text(
-                isLoading
-                    ? 'Loading...'
-                    : (companyName ?? 'Sale Book'),
+                controller.isLoading.value
+                    ? 'লোড হচ্ছে...'
+                    : controller.userName.value,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -151,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
               const Icon(Icons.expand_more, size: 20),
             ],
-          ),
+          )),
         ),
         actions: [
           Container(
@@ -195,17 +83,17 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Section with Company Info
-              Text(
-                'গুড মর্নিং',
+              // Header Section
+              Obx(() => Text(
+                controller.greeting.value,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF8B7355),
                   fontSize: 14,
                 ),
-              ),
+              )),
               const SizedBox(height: 4),
               Text(
-                'Dashboard',
+                'ড্যাশবোর্ড',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
@@ -213,76 +101,76 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // Company Info Card
-              if (!isLoading && companyName != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6C63FF), Color(0xFF5A52D5)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              // User Info Card
+              Obx(() => !controller.isLoading.value
+                  ? Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF5A52D5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6C63FF).withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.business,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'কোম্পানি',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              companyName!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'ID: $companyId',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'ব্যবহারকারী',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            controller.userName.value,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ID: ${controller.userId.value}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : const SizedBox.shrink()),
 
               const SizedBox(height: 24),
 
@@ -356,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Feature Grid
+                    // Feature Grid - Only Sales and Purchase
                     GridView.count(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
@@ -367,53 +255,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         _buildFeatureCard(
                           context,
-                          icon: Icons.inventory_2_rounded,
-                          title: 'স্টক ব্যবস্থাপনা',
-                          color: const Color(0xFF4CAF50),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const StockScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _buildFeatureCard(
-                          context,
                           icon: Icons.shopping_bag_rounded,
-                          title: 'বিক্রয় সংরক্ষণ',
-                          color: const Color(0xFFE74C3C),
-                          onTap: () {
-                            // Using AppRoutes for navigation
-                            Get.toNamed(AppRoutes.sales);
-                          },
+                          title: 'বিক্রয়',
+                          color: const Color(0xFF4CAF50),
+                          onTap: controller.navigateToSales,
                         ),
                         _buildFeatureCard(
                           context,
-                          icon: Icons.receipt_long_rounded,
-                          title: 'বিক্রয় প্রতিবেদন',
-                          color: const Color(0xFFF39C12),
-                          onTap: () {
-                            Get.snackbar(
-                              'শীঘ্রই আসছে',
-                              'বিক্রয় প্রতিবেদন',
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                          },
-                        ),
-                        _buildFeatureCard(
-                          context,
-                          icon: Icons.trending_up_rounded,
-                          title: 'বিশ্লেষণ ও রিপোর্ট',
-                          color: const Color(0xFF3498DB),
-                          onTap: () {
-                            Get.snackbar(
-                              'শীঘ্রই আসছে',
-                              'বিশ্লেষণ ও রিপোর্ট',
-                              snackPosition: SnackPosition.BOTTOM,
-                            );
-                          },
+                          icon: Icons.shopping_cart_rounded,
+                          title: 'ক্রয়',
+                          color: const Color(0xFF2196F3),
+                          onTap: controller.navigateToPurchase,
                         ),
                       ],
                     ),
@@ -561,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.logout,
             title: 'লগআউট',
             color: const Color(0xFFE74C3C),
-            onTap: () => _logout(context),
+            onTap: controller.logout,
           ),
         ],
       ),
