@@ -24,7 +24,7 @@ class AddSalesEntryScreen extends StatelessWidget {
           onPressed: () => Get.back(),
         ),
         title: const Text(
-          'নতুন প্রোডাক্ট',
+          'নতুন বিক্রয়',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -33,6 +33,33 @@ class AddSalesEntryScreen extends StatelessWidget {
         ),
         backgroundColor: AppColors.appBarBackground,
         elevation: 0,
+        actions: [
+          Obx(() {
+            final totalAmount = controller.totalAmount.value;
+            if (totalAmount == 0) return const SizedBox.shrink();
+
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '৳${totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
       body: Stack(
         children: [
@@ -45,7 +72,7 @@ class AddSalesEntryScreen extends StatelessWidget {
                     children: [
                       const SizedBox(height: 16),
 
-                      // Customer Section
+                      // Customer Section (Optional)
                       CustomerSection(controller: controller),
 
                       const SizedBox(height: 16),
@@ -63,13 +90,8 @@ class AddSalesEntryScreen extends StatelessWidget {
                         );
                       }),
 
-                      // Product Form
-                      Obx(() {
-                        if (controller.selectedCustomer.value == null) {
-                          return const SizedBox.shrink();
-                        }
-                        return ProductForm(controller: controller);
-                      }),
+                      // Product Form (Always visible)
+                      ProductForm(controller: controller),
 
                       const SizedBox(height: 16),
                     ],
@@ -130,7 +152,7 @@ class AddSalesEntryScreen extends StatelessWidget {
           backgroundColor: AppColors.primary,
           icon: const Icon(Icons.check, color: Colors.white),
           label: const Text(
-            'নিশ্চিত',
+            'সংরক্ষণ করুন',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

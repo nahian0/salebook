@@ -24,6 +24,8 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final isListening = false.obs;
   final isLoadingParties = false.obs;
   final isSaving = false.obs;
+  final isCreatingParty = false.obs;
+  final isTypingCustomer = false.obs;
 
   // Repository
   final PartyRepository _partyRepository = PartyRepository();
@@ -64,7 +66,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   Future<void> _initializeController() async {
     // Load company ID and user ID from storage
     companyId = await StorageService.getCompanyId();
-   // userId = await StorageService.getUserId();
 
     if (companyId == null) {
       Get.snackbar(
@@ -128,9 +129,61 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     }
   }
 
+  // Start typing mode for new customer
+  void startTypingCustomer() {
+    isTypingCustomer.value = true;
+    customerSearchController.clear();
+  }
+
+  // Cancel typing mode
+  void cancelTypingCustomer() {
+    isTypingCustomer.value = false;
+    customerSearchController.clear();
+  }
+
+  // Save typed customer
+  Future<void> saveTypedCustomer() async {
+    final name = customerSearchController.text.trim();
+    if (name.isEmpty) {
+      Get.snackbar(
+        'ত্রুটি',
+        'গ্রাহকের নাম লিখুন',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Check if customer already exists
+    final existingParty = customerList.firstWhereOrNull(
+          (party) => party.name.toLowerCase() == name.toLowerCase(),
+    );
+
+    if (existingParty != null) {
+      selectedCustomer.value = existingParty;
+      isTypingCustomer.value = false;
+      customerSearchController.clear();
+      Get.snackbar(
+        'সফল',
+        'গ্রাহক নির্বাচিত: ${existingParty.name}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    // Create new customer
+    await createNewParty(name);
+    isTypingCustomer.value = false;
+    customerSearchController.clear();
+  }
+
   Future<void> createNewParty(String partyName) async {
     try {
-      isLoadingParties.value = true;
+      isCreatingParty.value = true;
       final newParty = await _partyRepository.createParty(partyName);
 
       if (newParty != null) {
@@ -158,7 +211,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         colorText: Colors.white,
       );
     } finally {
-      isLoadingParties.value = false;
+      isCreatingParty.value = false;
     }
   }
 
@@ -178,7 +231,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     waveController.repeat();
 
     String lastRecognizedText = '';
-    bool hasCustomer = selectedCustomer.value != null;
 
     await _speechService.startListening(
       languageCode: currentLocaleId,
@@ -188,7 +240,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         }
       },
       onError: (error) {
-        _handleListeningStop(lastRecognizedText, hasCustomer);
+        _handleListeningStop(lastRecognizedText);
         Get.snackbar(
           'ত্রুটি',
           'স্পিচ এরর: $error',
@@ -202,7 +254,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     Future.delayed(const Duration(seconds: 5), () async {
       if (isListening.value) {
         await _stopListening();
-        _handleListeningStop(lastRecognizedText, hasCustomer);
+        _handleListeningStop(lastRecognizedText);
       }
     });
   }
@@ -216,40 +268,34 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     waveController.reset();
   }
 
-  void _handleListeningStop(String recognizedText, bool hadCustomer) async {
+  void _handleListeningStop(String recognizedText) async {
     if (recognizedText.isEmpty) return;
 
-    if (!hadCustomer) {
+    // If user is typing customer name, fill the text field
+    if (isTypingCustomer.value) {
       customerSearchController.text = recognizedText;
-
-      final existingParty = customerList.firstWhereOrNull(
-            (party) => party.name.toLowerCase() == recognizedText.toLowerCase(),
+      Get.snackbar(
+        'সফল',
+        'গ্রাহকের নাম যোগ হয়েছে',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
       );
+      return;
+    }
 
-      if (existingParty != null) {
-        selectedCustomer.value = existingParty;
-        Get.snackbar(
-          'সফল',
-          'গ্রাহক নির্বাচিত: ${existingParty.name}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
-      } else {
-        await createNewParty(recognizedText);
-      }
-    } else {
-      final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
+    // Try to parse as product input first
+    final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
 
-      if (parsedData['productName']?.isNotEmpty ?? false) {
-        String productName = _cleanProductName(parsedData['productName']!);
-        productController.text = productName;
+    if (parsedData['productName']?.isNotEmpty ?? false) {
+      // It's a product entry
+      String productName = _cleanProductName(parsedData['productName']!);
+      productController.text = productName;
 
-        String detectedUnit = parsedData['unit'] ?? 'লিটার';
-        if (units.contains(detectedUnit)) {
-          selectedUnit.value = detectedUnit;
-        }
+      String detectedUnit = parsedData['unit'] ?? 'লিটার';
+      if (units.contains(detectedUnit)) {
+        selectedUnit.value = detectedUnit;
       }
 
       if (parsedData['quantity']?.isNotEmpty ?? false) {
@@ -268,6 +314,37 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         colorText: Colors.white,
         duration: const Duration(seconds: 2),
       );
+    } else {
+      // Treat as customer name
+      final existingParty = customerList.firstWhereOrNull(
+            (party) => party.name.toLowerCase() == recognizedText.toLowerCase(),
+      );
+
+      if (existingParty != null) {
+        selectedCustomer.value = existingParty;
+        Get.snackbar(
+          'সফল',
+          'গ্রাহক নির্বাচিত: ${existingParty.name}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        // Ask if user wants to create new customer
+        Get.defaultDialog(
+          title: 'নতুন গ্রাহক?',
+          middleText: 'গ্রাহক "$recognizedText" তৈরি করতে চান?',
+          textConfirm: 'হ্যাঁ',
+          textCancel: 'না',
+          confirmTextColor: Colors.white,
+          onConfirm: () async {
+            Get.back();
+            await createNewParty(recognizedText);
+          },
+          onCancel: () {},
+        );
+      }
     }
   }
 
@@ -349,6 +426,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   void clearCustomer() {
     selectedCustomer.value = null;
     customerSearchController.clear();
+    isTypingCustomer.value = false;
   }
 
   String _generateSaleNo() {
@@ -357,10 +435,10 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   }
 
   Future<void> saveSalesEntry() async {
-    if (selectedCustomer.value == null || products.isEmpty) {
+    if (products.isEmpty) {
       Get.snackbar(
         'ত্রুটি',
-        'গ্রাহক নির্বাচন করুন এবং অন্তত একটি পণ্য যোগ করুন',
+        'অন্তত একটি পণ্য যোগ করুন',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -392,11 +470,15 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         };
       }).toList();
 
+      // Use party ID 0 if no customer selected
+      final partyId = selectedCustomer.value?.id ?? 0;
+      final partyName = selectedCustomer.value?.name ?? 'Walk-in Customer';
+
       // Call API with companyId from storage
       final result = await _salesRepository.createSale(
         companyId: companyId!,
-        salePartyId: selectedCustomer.value!.id,
-        salePartyName: selectedCustomer.value!.name,
+        salePartyId: partyId,
+        salePartyName: partyName,
         saleNo: _generateSaleNo(),
         saleDate: DateTime.now(),
         totalAmount: totalAmount.value,
@@ -412,8 +494,8 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         // Prepare result data
         final resultData = {
           'success': true,
-          'customerId': selectedCustomer.value!.id,
-          'customerName': selectedCustomer.value!.name,
+          'customerId': partyId,
+          'customerName': partyName,
           'products': products.toList(),
           'totalAmount': totalAmount.value,
           'paidAmount': getPaidAmount(),
@@ -457,19 +539,17 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   }
 
   String getListeningPrompt() {
-    if (selectedCustomer.value == null) {
+    if (isTypingCustomer.value) {
       return 'গ্রাহকের নাম বলুন...';
-    } else {
-      return 'পণ্যের তথ্য বলুন...';
     }
+    return 'গ্রাহক বা পণ্যের তথ্য বলুন...';
   }
 
   String getVoiceHintText() {
-    if (selectedCustomer.value == null) {
+    if (isTypingCustomer.value) {
       return 'গ্রাহকের নাম বলতে চাপুন';
-    } else {
-      return 'পণ্য যোগ করতে চাপুন';
     }
+    return 'গ্রাহক বা পণ্য যোগ করতে চাপুন';
   }
 
   @override
