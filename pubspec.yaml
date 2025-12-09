@@ -19,15 +19,42 @@ dependencies:
   # Permissions
   permission_handler: ^11.0.1
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  flutter_lints: ^5.0.0
   dio: ^5.4.0
   shared_preferences: ^2.2.2
   get: ^4.6.6
   device_info_plus: ^10.1.0
 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+  # App Icon and Splash Screen
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.5
+
 flutter:
   uses-material-design: true
+
+  # Add your images here
+  assets:
+    - assets/images/
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  # Optional: for adaptive icons on Android
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+
+# Splash Screen Configuration
+flutter_native_splash:
+  color: "#ffffff"  # Change this to your preferred background color
+  image: assets/images/splash_logo.png
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
