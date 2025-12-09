@@ -3,9 +3,8 @@ import 'package:get/get.dart';
 import '../../../../core/services/speech_services.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/text parser/voice_parser_product_updated.dart';
-import '../../data/model/party_model.dart';
-import '../../data/repository/party_repository.dart';
-import '../../data/repository/sales_repository.dart';
+import '../../data/models/party_model.dart';
+import '../../data/repositories/sales_entry_repository.dart';
 
 class SalesEntryController extends GetxController with GetTickerProviderStateMixin {
   // Controllers
@@ -27,9 +26,8 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final isCreatingParty = false.obs;
   final isTypingCustomer = false.obs;
 
-  // Repository
-  final PartyRepository _partyRepository = PartyRepository();
-  final SalesRepository _salesRepository = SalesRepository();
+  // Repository - Now using single repository
+  final SalesEntryRepository _repository = SalesEntryRepository();
 
   // Speech service
   final HybridSpeechService _speechService = HybridSpeechService();
@@ -114,7 +112,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   Future<void> _loadParties() async {
     try {
       isLoadingParties.value = true;
-      final response = await _partyRepository.getAllParties();
+      final response = await _repository.getAllParties();
       customerList.value = response.data;
     } catch (e) {
       Get.snackbar(
@@ -184,7 +182,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   Future<void> createNewParty(String partyName) async {
     try {
       isCreatingParty.value = true;
-      final newParty = await _partyRepository.createParty(partyName);
+      final newParty = await _repository.createParty(partyName);
 
       if (newParty != null) {
         await _loadParties();
@@ -475,7 +473,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       final partyName = selectedCustomer.value?.name ?? 'Walk-in Customer';
 
       // Call API with companyId from storage
-      final result = await _salesRepository.createSale(
+      final result = await _repository.createSale(
         companyId: companyId!,
         salePartyId: partyId,
         salePartyName: partyName,

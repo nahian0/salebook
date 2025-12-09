@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../data/model/sales_model.dart';
+import '../../data/models/sales_model.dart';
 import '../controller/sales_controller.dart';
-import 'add_sales_entry_screen.dart';
+import '../../../sales entry/presentation/ui/add_sales_entry_screen.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});

@@ -2,7 +2,7 @@
 
 import 'package:get/get.dart';
 import '../../../../core/services/storage_service.dart';
-import '../../data/model/sales_model.dart';
+import '../../data/models/sales_model.dart';
 import '../../data/repository/sales_repository.dart';
 
 class SalesController extends GetxController {
