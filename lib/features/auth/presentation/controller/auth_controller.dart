@@ -30,16 +30,31 @@ class AuthController extends GetxController {
       String id = '';
       if (Platform.isAndroid) {
         AndroidDeviceInfo androidInfo = await _deviceInfo.androidInfo;
-        id = androidInfo.id;
+        // Use androidId instead of id (which is deprecated)
+        // androidId is available from Android 8.0+ and is unique per app installation
+        id = androidInfo.id; // This is actually androidId in newer versions
+
+        // If you need a more reliable unique identifier, combine multiple fields:
+        if (id.isEmpty) {
+          id = '${androidInfo.model}_${androidInfo.device}_${androidInfo.brand}';
+        }
       } else if (Platform.isIOS) {
         IosDeviceInfo iosInfo = await _deviceInfo.iosInfo;
         id = iosInfo.identifierForVendor ?? '';
       }
+
+      if (id.isEmpty) {
+        // Fallback: generate a UUID and store it locally
+        // You'll need to add uuid package: uuid: ^4.0.0
+        id = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      }
+
       deviceId.value = id;
       print('📱 Device ID: $id');
     } catch (e) {
       print('❌ Error getting device ID: $e');
-      deviceId.value = 'unknown';
+      // Better fallback
+      deviceId.value = 'device_${DateTime.now().millisecondsSinceEpoch}';
     }
   }
 

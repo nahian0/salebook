@@ -123,15 +123,13 @@ class HomeController extends GetxController {
     }
   }
 
+  // Navigate to Sales screen
   void navigateToSales() {
     Get.toNamed(AppRoutes.sales);
   }
 
+  // Navigate to Purchase screen
   void navigateToPurchase() {
-    Get.snackbar(
-      'শীঘ্রই আসছে',
-      'ক্রয় বৈশিষ্ট্য শীঘ্রই যোগ করা হবে',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.toNamed(AppRoutes.purchase);
   }
 }

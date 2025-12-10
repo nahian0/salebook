@@ -1,0 +1,553 @@
+// lib/features/purchase/presentation/controller/purchase_entry_controller.dart
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../../../core/services/speech_services.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../../core/text parser/voice_parser_product_updated.dart';
+import '../../data/models/purchase_party_model.dart';
+import '../../data/repositories/purchase_entry_repository.dart';
+
+class PurchaseEntryController extends GetxController with GetTickerProviderStateMixin {
+  // Controllers
+  final supplierSearchController = TextEditingController();
+  final productController = TextEditingController();
+  final quantityController = TextEditingController();
+  final priceController = TextEditingController();
+
+  // Observable state
+  final selectedSupplier = Rxn<PurchasePartyModel>();
+  final supplierList = <PurchasePartyModel>[].obs;
+  final selectedUnit = 'লিটার'.obs;
+  final products = <Map<String, dynamic>>[].obs;
+  final totalAmount = 0.0.obs;
+  final isListening = false.obs;
+  final isLoadingParties = false.obs;
+  final isSaving = false.obs;
+  final isCreatingParty = false.obs;
+  final isTypingSupplier = false.obs;
+
+  // Repository
+  final PurchaseEntryRepository _repository = PurchaseEntryRepository();
+
+  // Speech service
+  final HybridSpeechService _speechService = HybridSpeechService();
+  final currentLocaleId = 'bn-BD';
+
+  // Animation controllers
+  late AnimationController pulseController;
+  late AnimationController waveController;
+  late Animation<double> scaleAnimation;
+
+  final units = [
+    'কেজি',
+    'গ্রাম',
+    'লিটার',
+    'পিস',
+    'ডজন',
+    'প্যাক',
+    'বক্স',
+  ];
+
+  // Company and user IDs - loaded from storage
+  int? companyId;
+  int? userId;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _initializeController();
+    _initSpeech();
+    _initAnimations();
+  }
+
+  Future<void> _initializeController() async {
+    // Load company ID from storage
+    companyId = await StorageService.getCompanyId();
+
+    if (companyId == null) {
+      Get.snackbar(
+        'ত্রুটি',
+        'কোম্পানি তথ্য পাওয়া যায়নি',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Load purchase parties after getting company ID
+    await _loadPurchaseParties();
+  }
+
+  void _initAnimations() {
+    pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    waveController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  Future<void> _initSpeech() async {
+    final initialized = await _speechService.initialize();
+    if (!initialized) {
+      Get.snackbar(
+        'ত্রুটি',
+        'স্পিচ রিকগনিশন উপলব্ধ নেই',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> _loadPurchaseParties() async {
+    try {
+      isLoadingParties.value = true;
+      final response = await _repository.getAllPurchaseParties();
+      supplierList.value = response.data;
+    } catch (e) {
+      Get.snackbar(
+        'ত্রুটি',
+        'সরবরাহকারী লোড করতে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingParties.value = false;
+    }
+  }
+
+  // Start typing mode for new supplier
+  void startTypingSupplier() {
+    isTypingSupplier.value = true;
+    supplierSearchController.clear();
+  }
+
+  // Cancel typing mode
+  void cancelTypingSupplier() {
+    isTypingSupplier.value = false;
+    supplierSearchController.clear();
+  }
+
+  // Save typed supplier
+  Future<void> saveTypedSupplier() async {
+    final name = supplierSearchController.text.trim();
+    if (name.isEmpty) {
+      Get.snackbar(
+        'ত্রুটি',
+        'সরবরাহকারীর নাম লিখুন',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Check if supplier already exists
+    final existingParty = supplierList.firstWhereOrNull(
+          (party) => party.name.toLowerCase() == name.toLowerCase(),
+    );
+
+    if (existingParty != null) {
+      selectedSupplier.value = existingParty;
+      isTypingSupplier.value = false;
+      supplierSearchController.clear();
+      Get.snackbar(
+        'সফল',
+        'সরবরাহকারী নির্বাচিত: ${existingParty.name}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    // Create new supplier
+    await createNewPurchaseParty(name);
+    isTypingSupplier.value = false;
+    supplierSearchController.clear();
+  }
+
+  Future<void> createNewPurchaseParty(String partyName) async {
+    try {
+      isCreatingParty.value = true;
+      final newParty = await _repository.createPurchaseParty(partyName);
+
+      if (newParty != null) {
+        await _loadPurchaseParties();
+        selectedSupplier.value = supplierList.firstWhere(
+              (party) => party.name == partyName,
+          orElse: () => newParty,
+        );
+
+        Get.snackbar(
+          'সফল',
+          'নতুন সরবরাহকারী যোগ হয়েছে: $partyName',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'ত্রুটি',
+        'সরবরাহকারী তৈরি করতে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isCreatingParty.value = false;
+    }
+  }
+
+  Future<void> toggleVoiceInput() async {
+    if (isListening.value) {
+      await _stopListening();
+    } else {
+      await _startListening();
+    }
+  }
+
+  Future<void> _startListening() async {
+    if (_speechService.isListening) return;
+
+    isListening.value = true;
+    pulseController.repeat(reverse: true);
+    waveController.repeat();
+
+    String lastRecognizedText = '';
+
+    await _speechService.startListening(
+      languageCode: currentLocaleId,
+      onResult: (text) {
+        if (text.isNotEmpty) {
+          lastRecognizedText = text;
+        }
+      },
+      onError: (error) {
+        _handleListeningStop(lastRecognizedText);
+        Get.snackbar(
+          'ত্রুটি',
+          'স্পিচ এরর: $error',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      },
+    );
+
+    Future.delayed(const Duration(seconds: 5), () async {
+      if (isListening.value) {
+        await _stopListening();
+        _handleListeningStop(lastRecognizedText);
+      }
+    });
+  }
+
+  Future<void> _stopListening() async {
+    await _speechService.stopListening();
+    isListening.value = false;
+    pulseController.stop();
+    pulseController.reset();
+    waveController.stop();
+    waveController.reset();
+  }
+
+  void _handleListeningStop(String recognizedText) async {
+    if (recognizedText.isEmpty) return;
+
+    // If user is typing supplier name, fill the text field
+    if (isTypingSupplier.value) {
+      supplierSearchController.text = recognizedText;
+      Get.snackbar(
+        'সফল',
+        'সরবরাহকারীর নাম যোগ হয়েছে',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    // Try to parse as product input first
+    final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
+
+    if (parsedData['productName']?.isNotEmpty ?? false) {
+      // It's a product entry
+      String productName = _cleanProductName(parsedData['productName']!);
+      productController.text = productName;
+
+      String detectedUnit = parsedData['unit'] ?? 'লিটার';
+      if (units.contains(detectedUnit)) {
+        selectedUnit.value = detectedUnit;
+      }
+
+      if (parsedData['quantity']?.isNotEmpty ?? false) {
+        quantityController.text = parsedData['quantity']!;
+      }
+
+      if (parsedData['price']?.isNotEmpty ?? false) {
+        priceController.text = parsedData['price']!;
+      }
+
+      Get.snackbar(
+        'সফল',
+        'পণ্যের তথ্য যোগ হয়েছে',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    } else {
+      // Treat as supplier name
+      final existingParty = supplierList.firstWhereOrNull(
+            (party) => party.name.toLowerCase() == recognizedText.toLowerCase(),
+      );
+
+      if (existingParty != null) {
+        selectedSupplier.value = existingParty;
+        Get.snackbar(
+          'সফল',
+          'সরবরাহকারী নির্বাচিত: ${existingParty.name}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        // Ask if user wants to create new supplier
+        Get.defaultDialog(
+          title: 'নতুন সরবরাহকারী?',
+          middleText: 'সরবরাহকারী "$recognizedText" তৈরি করতে চান?',
+          textConfirm: 'হ্যাঁ',
+          textCancel: 'না',
+          confirmTextColor: Colors.white,
+          onConfirm: () async {
+            Get.back();
+            await createNewPurchaseParty(recognizedText);
+          },
+          onCancel: () {},
+        );
+      }
+    }
+  }
+
+  String _cleanProductName(String productName) {
+    String cleaned = productName.trim();
+    cleaned = cleaned.replaceAll(RegExp(r'\s*\d+\.?\d*\s*$'), '');
+
+    final unitWords = ['kg', 'kilo', 'liter', 'litre', 'gram', 'piece', 'dozen', 'pack', 'box'];
+    for (var unit in unitWords) {
+      cleaned = cleaned.replaceAll(RegExp(r'\s*\b' + unit + r'\b\s*', caseSensitive: false), '');
+    }
+
+    final banglaUnits = ['কেজি', 'কিলো', 'লিটার', 'গ্রাম', 'টা', 'টি', 'ডজন'];
+    for (var unit in banglaUnits) {
+      cleaned = cleaned.replaceAll(RegExp(r'\s*' + unit + r'\s*', unicode: true), '');
+    }
+
+    return cleaned.trim();
+  }
+
+  void addProduct() {
+    final product = productController.text.trim();
+    final quantity = double.tryParse(quantityController.text) ?? 0;
+    final price = double.tryParse(priceController.text) ?? 0;
+
+    if (product.isEmpty || quantity <= 0 || price <= 0) {
+      Get.snackbar(
+        'ত্রুটি',
+        'সব ফিল্ড সঠিকভাবে পূরণ করুন',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    products.add({
+      'productName': product,
+      'quantity': quantity,
+      'unit': selectedUnit.value,
+      'price': price,
+      'total': quantity * price,
+    });
+
+    _calculateTotal();
+
+    productController.clear();
+    quantityController.clear();
+    priceController.clear();
+    selectedUnit.value = 'লিটার';
+
+    Get.snackbar(
+      'সফল',
+      '$product যোগ হয়েছে',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 1),
+    );
+  }
+
+  void _calculateTotal() {
+    totalAmount.value = products.fold(0.0, (sum, item) => sum + (item['total'] as double));
+  }
+
+  void deleteProduct(int index) {
+    products.removeAt(index);
+    _calculateTotal();
+  }
+
+  void clearSupplier() {
+    selectedSupplier.value = null;
+    supplierSearchController.clear();
+    isTypingSupplier.value = false;
+  }
+
+  String _generatePurchaseNo() {
+    final now = DateTime.now();
+    return 'PUR${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> savePurchaseEntry() async {
+    if (products.isEmpty) {
+      Get.snackbar(
+        'ত্রুটি',
+        'অন্তত একটি পণ্য যোগ করুন',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Check if company ID is available
+    if (companyId == null) {
+      Get.snackbar(
+        'ত্রুটি',
+        'কোম্পানি তথ্য পাওয়া যায়নি',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    try {
+      isSaving.value = true;
+
+      // Prepare purchase details
+      final purchaseDetails = products.map((product) {
+        return {
+          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']} @ ${product['price']}',
+          'amount': product['total'],
+          'remarks': '',
+        };
+      }).toList();
+
+      // Use party ID 0 if no supplier selected
+      final partyId = selectedSupplier.value?.id ?? 0;
+      final partyName = selectedSupplier.value?.name ?? 'Walk-in Supplier';
+
+      // Call API with companyId from storage
+      final result = await _repository.createPurchase(
+        companyId: companyId!,
+        purchasePartyId: partyId,
+        purchasePartyName: partyName,
+        purNo: _generatePurchaseNo(),
+        purchaseDate: DateTime.now(),
+        totalAmount: totalAmount.value,
+        purchaseDetails: purchaseDetails,
+        remarks: '',
+      );
+
+      // Hide loading immediately after API call
+      isSaving.value = false;
+
+      if (result['success'] == true) {
+        // Prepare result data
+        final resultData = {
+          'success': true,
+          'supplierId': partyId,
+          'supplierName': partyName,
+          'products': products.toList(),
+          'totalAmount': totalAmount.value,
+          'timestamp': DateTime.now(),
+        };
+
+        // Show success message and navigate back
+        Get.back(result: resultData);
+
+        // Show snackbar after navigation
+        Get.snackbar(
+          'সফল',
+          'ক্রয় সংরক্ষিত হয়েছে',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        Get.snackbar(
+          'ত্রুটি',
+          'ক্রয় সংরক্ষণ ব্যর্থ হয়েছে',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      isSaving.value = false;
+
+      Get.snackbar(
+        'ত্রুটি',
+        'ক্রয় সংরক্ষণে সমস্যা হয়েছে: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    }
+  }
+
+  String getListeningPrompt() {
+    if (isTypingSupplier.value) {
+      return 'সরবরাহকারীর নাম বলুন...';
+    }
+    return 'সরবরাহকারী বা পণ্যের তথ্য বলুন...';
+  }
+
+  String getVoiceHintText() {
+    if (isTypingSupplier.value) {
+      return 'সরবরাহকারীর নাম বলতে চাপুন';
+    }
+    return 'সরবরাহকারী বা পণ্য যোগ করতে চাপুন';
+  }
+
+  @override
+  void onClose() {
+    supplierSearchController.dispose();
+    productController.dispose();
+    quantityController.dispose();
+    priceController.dispose();
+    _speechService.dispose();
+    pulseController.dispose();
+    waveController.dispose();
+    super.onClose();
+  }
+}
