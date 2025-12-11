@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/models/purchase_details_item.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/dialog_utils.dart';
 import '../../../purchase entry/presentation/ui/add_purchase_entry_screen.dart';
 import '../../data/models/purchase_model.dart';
 import '../controller/purchase_controller.dart';
@@ -13,8 +15,10 @@ class PurchaseScreen extends StatelessWidget {
   PurchaseController get controller => Get.find<PurchaseController>();
 
   void _navigateToAddPurchaseEntry(BuildContext context) async {
-
     final result = await Get.to(() => const AddPurchaseEntryScreen());
+
+    // Refresh the list when returning, regardless of result
+    print('Returned from AddPurchaseEntry with result: $result');
     await controller.refreshPurchaseList();
 
     if (result != null && result['success'] == true) {
@@ -22,249 +26,29 @@ class PurchaseScreen extends StatelessWidget {
     }
   }
 
-  void _showHelpDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'সাহায্য',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: const Text(
-          '• + বোতাম ট্যাপ করে নতুন ক্রয় যোগ করুন\n'
-              '• ভয়েস বা ড্রপডাউন ব্যবহার করে সরবরাহকারী নির্বাচন করুন\n'
-              '• প্রতিটি সরবরাহকারীর জন্য একাধিক পণ্য যোগ করুন\n'
-              '• ভয়েস ইনপুট: "চাল ১০ কেজি ১০০ টাকা"\n'
-              '• সমস্ত পণ্য পর্যালোচনা এবং সংরক্ষণ করুন\n'
-              '• বিবরণ দেখতে এন্ট্রি ট্যাপ করুন',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'বুঝেছি',
-              style: TextStyle(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
+  void _deletePurchaseEntry(int purchaseId) {
+    DialogUtils.showDeleteConfirmDialog(
+      title: 'ক্রয় মুছুন',
+      message: 'আপনি কি এই ক্রয় এন্ট্রি মুছতে চান?',
+      onConfirm: () => controller.deletePurchaseEntry(purchaseId),
     );
   }
 
-  void _deletePurchaseEntry(BuildContext context, int purchaseId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'ক্রয় মুছুন',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: const Text(
-          'আপনি কি এই ক্রয় এন্ট্রি মুছতে চান?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'বাতিল',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              controller.deletePurchaseEntry(purchaseId);
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'মুছুন',
-              style: TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _viewPurchaseDetails(PurchaseModel purchase) {
+    // Convert PurchaseModel details to PurchaseDetailItem list
+    final items = purchase.purPurchaseDetails.map((detail) {
+      return PurchaseDetailItem(
+        description: detail.productDescription,
+        remarks: detail.remarks,
+        amount: detail.amount,
+      );
+    }).toList();
 
-  void _viewPurchaseDetails(BuildContext context, PurchaseModel purchase) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 600),
-          color: AppColors.surface,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.receipt_long, color: Colors.white, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'ক্রয় বিবরণ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            purchase.purchasePartyName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            purchase.purNo,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white60,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              // Products List
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.all(20),
-                  itemCount: purchase.purPurchaseDetails.length,
-                  itemBuilder: (context, index) {
-                    final detail = purchase.purPurchaseDetails[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  detail.productDescription,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                if (detail.remarks != null && detail.remarks!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    detail.remarks!,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '৳${detail.amount.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Total
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'মোট পরিমাণ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      '৳${purchase.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    DialogUtils.showPurchaseDetailsDialog(
+      purNo: purchase.purNo,
+      partyName: purchase.purchasePartyName,
+      items: items,
+      totalAmount: purchase.totalAmount,
     );
   }
 
@@ -302,7 +86,7 @@ class PurchaseScreen extends StatelessWidget {
             ),
             child: IconButton(
               icon: const Icon(Icons.help_outline, color: AppColors.textPrimary),
-              onPressed: () => _showHelpDialog(context),
+              onPressed: DialogUtils.showPurchaseHelpDialog,
             ),
           ),
         ],
@@ -518,7 +302,7 @@ class PurchaseScreen extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: () => _viewPurchaseDetails(context, purchase),
+                          onTap: () => _viewPurchaseDetails(purchase),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Row(
@@ -572,7 +356,7 @@ class PurchaseScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 6),
                                     GestureDetector(
-                                      onTap: () => _deletePurchaseEntry(context, purchase.id),
+                                      onTap: () => _deletePurchaseEntry(purchase.id),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,

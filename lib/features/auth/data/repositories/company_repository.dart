@@ -125,7 +125,8 @@ class CompanyRepository {
   }
 
   /// Create new company with device ID
-  Future<bool> createCompany({
+  /// Returns CreateCompanyResult to handle both success and existing company scenarios
+  Future<CreateCompanyResult> createCompany({
     required String name,
     required String phoneNo,
     required String description,
@@ -149,12 +150,49 @@ class CompanyRepository {
       print('📤 Sending create company request with deviceId: $deviceId');
       print('📦 Request body: $body');
 
-      final response = await _dio.post('/Company', data: body);
+      final response = await _dio.post(
+        '/Company',
+        data: body,
+        options: Options(
+          validateStatus: (status) {
+            // Accept both success and 400 status codes
+            return status != null && (status == 200 || status == 201 || status == 400);
+          },
+        ),
+      );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      print('📥 HTTP Response status: ${response.statusCode}');
+      print('📥 Response data: ${response.data}');
+
+      // IMPORTANT: Check the API's internal status field, not just HTTP status
+      final apiStatus = response.data['status'];
+      final message = response.data['message'] ?? '';
+
+      print('📥 API Status: $apiStatus');
+      print('📥 API Message: $message');
+
+      // Check if company already exists (status 400 in response body)
+      if (apiStatus == 400) {
+        print('⚠️ Company already exists with this phone number');
+
+        String? existingCompanyName;
+        if (response.data['data'] != null && response.data['data']['name'] != null) {
+          existingCompanyName = response.data['data']['name'];
+        }
+
+        return CreateCompanyResult(
+          success: false,
+          alreadyExists: true,
+          message: 'এই নম্বরটি ইতিমধ্যে নিবন্ধিত আছে',
+          companyData: response.data['data'],
+          phoneNo: phoneNo,
+        );
+      }
+
+      // Success case - company created (status 200 in response body)
+      if (apiStatus == 200 || apiStatus == 201) {
         print('✅ Company created successfully');
 
-        // Save to SharedPreferences after successful creation
         if (response.data != null && response.data['data'] != null) {
           final companyData = response.data['data'];
           await StorageService.saveCompanyInfo(
@@ -162,20 +200,45 @@ class CompanyRepository {
             companyName: name,
           );
         } else {
-          // If response doesn't contain ID, save with a default
           await StorageService.saveCompanyInfo(
             companyId: 1,
             companyName: name,
           );
         }
-        return true;
+
+        return CreateCompanyResult(
+          success: true,
+          alreadyExists: false,
+          message: 'ইউজার সফলভাবে তৈরি হয়েছে!',
+        );
       }
 
-      print('⚠️ Unexpected status code: ${response.statusCode}');
-      return false;
+      print('⚠️ Unexpected API status: $apiStatus');
+      return CreateCompanyResult(
+        success: false,
+        alreadyExists: false,
+        message: message.isNotEmpty ? message : 'ইউজার তৈরি করতে ব্যর্থ',
+      );
+
     } on DioException catch (e) {
       print('❌ DioException: ${e.message}');
       print('❌ Response: ${e.response?.data}');
+
+      // Handle 400 HTTP error
+      if (e.response?.statusCode == 400 && e.response?.data != null) {
+        final message = e.response!.data['message'] ?? '';
+
+        if (message.toLowerCase().contains('exists')) {
+          return CreateCompanyResult(
+            success: false,
+            alreadyExists: true,
+            message: 'এই নম্বরটি ইতিমধ্যে নিবন্ধিত আছে',
+            companyData: e.response!.data['data'],
+            phoneNo: phoneNo,
+          );
+        }
+      }
+
       throw Exception('Error creating company: ${e.message}');
     } catch (e) {
       print('❌ General error: $e');
@@ -295,6 +358,23 @@ class LoginResult {
     required this.isDifferentDevice,
     this.message,
     this.companyData,
+  });
+}
+
+/// Create company result class to handle creation scenarios
+class CreateCompanyResult {
+  final bool success;
+  final bool alreadyExists;
+  final String message;
+  final Map<String, dynamic>? companyData;
+  final String? phoneNo;
+
+  CreateCompanyResult({
+    required this.success,
+    required this.alreadyExists,
+    required this.message,
+    this.companyData,
+    this.phoneNo,
   });
 }
 

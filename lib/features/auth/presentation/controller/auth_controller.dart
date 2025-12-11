@@ -30,11 +30,8 @@ class AuthController extends GetxController {
       String id = '';
       if (Platform.isAndroid) {
         AndroidDeviceInfo androidInfo = await _deviceInfo.androidInfo;
-        // Use androidId instead of id (which is deprecated)
-        // androidId is available from Android 8.0+ and is unique per app installation
-        id = androidInfo.id; // This is actually androidId in newer versions
+        id = androidInfo.id;
 
-        // If you need a more reliable unique identifier, combine multiple fields:
         if (id.isEmpty) {
           id = '${androidInfo.model}_${androidInfo.device}_${androidInfo.brand}';
         }
@@ -44,8 +41,6 @@ class AuthController extends GetxController {
       }
 
       if (id.isEmpty) {
-        // Fallback: generate a UUID and store it locally
-        // You'll need to add uuid package: uuid: ^4.0.0
         id = 'device_${DateTime.now().millisecondsSinceEpoch}';
       }
 
@@ -53,7 +48,6 @@ class AuthController extends GetxController {
       print('📱 Device ID: $id');
     } catch (e) {
       print('❌ Error getting device ID: $e');
-      // Better fallback
       deviceId.value = 'device_${DateTime.now().millisecondsSinceEpoch}';
     }
   }
@@ -131,10 +125,11 @@ class AuthController extends GetxController {
         await Future.delayed(const Duration(milliseconds: 500));
         Get.offAllNamed(AppRoutes.home);
       } else if (result.isDifferentDevice) {
-        _showDifferentDeviceDialog(
+        DialogUtils.showDifferentDeviceDialog(
           phone: phone,
           message: result.message,
           companyData: result.companyData,
+          onRegisterTap: () => _handleDeviceRegistration(phone),
         );
       } else {
         _showError('ফোন নম্বর দিয়ে কোনো ইউজার পাওয়া যায়নি');
@@ -144,139 +139,6 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
-  }
-
-  /// Show dialog when user tries to login from different device
-  void _showDifferentDeviceDialog({
-    required String phone,
-    String? message,
-    Map<String, dynamic>? companyData,
-  }) {
-    String companyName = '';
-    if (companyData != null && companyData['name'] != null) {
-      companyName = companyData['name'];
-    }
-
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF9800).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.devices_other,
-                  color: Color(0xFFFF9800),
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'ভিন্ন ডিভাইস সনাক্ত হয়েছে',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              if (companyName.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C63FF).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    companyName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6C63FF),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Text(
-                message ?? 'আপনি ভিন্ন ডিভাইস থেকে লগইন করার চেষ্টা করছেন। এই ডিভাইসটি নিবন্ধন করতে চান?',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        'বাতিল',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.back();
-                        _handleDeviceRegistration(phone);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C63FF),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'নিবন্ধন করুন',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
   }
 
   /// Handle device registration - Send verification code
@@ -307,7 +169,7 @@ class AuthController extends GetxController {
           'phone': phone,
           'deviceId': deviceId.value,
           'companyId': result.companyId,
-          'verificationCode':result.verificationCode
+          'verificationCode': result.verificationCode
         });
       } else {
         _showError('কোড পাঠাতে ব্যর্থ হয়েছে');
@@ -349,23 +211,41 @@ class AuthController extends GetxController {
 
       print('📤 Creating company with device ID: ${deviceId.value}');
 
-      final success = await _repository.createCompany(
+      final result = await _repository.createCompany(
         name: name,
         phoneNo: phone,
         description: desc ?? '',
         deviceId: deviceId.value,
       );
 
-      if (success) {
+      if (result.success) {
         isLoggedIn.value = true;
-        _showSuccess('ইউজার সফলভাবে তৈরি হয়েছে!');
+        _showSuccess(result.message);
         await Future.delayed(const Duration(milliseconds: 500));
         Get.offAllNamed(AppRoutes.home);
+      } else if (result.alreadyExists) {
+        // Company already exists - show dialog to login
+        String? companyName;
+        if (result.companyData != null && result.companyData!['name'] != null) {
+          companyName = result.companyData!['name'];
+        }
+
+        DialogUtils.showCompanyExistsDialog(
+          phone: phone,
+          companyName: companyName,
+          companyData: result.companyData,
+          onGoToLogin: goToLogin,
+        );
       } else {
-        _showError('ইউজার তৈরি করতে ব্যর্থ');
+        _showError(result.message);
       }
     } catch (e) {
-      _showError('ত্রুটি: ${e.toString()}');
+      final errorMsg = e.toString();
+      if (errorMsg.contains('exists') || errorMsg.contains('Exists')) {
+        _showError('এই নম্বরটি ইতিমধ্যে নিবন্ধিত আছে। অনুগ্রহ করে লগইন করুন।');
+      } else {
+        _showError('ত্রুটি: $errorMsg');
+      }
     } finally {
       isLoading.value = false;
     }

@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/models/sales_details_item.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/dialog_utils.dart';
 import '../../data/models/sales_model.dart';
 import '../controller/sales_controller.dart';
 import '../../../sales entry/presentation/ui/add_sales_entry_screen.dart';
@@ -26,249 +28,29 @@ class SalesScreen extends StatelessWidget {
     }
   }
 
-  void _showHelpDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'সাহায্য',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: const Text(
-          '• + বোতাম ট্যাপ করে নতুন বিক্রয় যোগ করুন\n'
-              '• ভয়েস বা ড্রপডাউন ব্যবহার করে গ্রাহক নির্বাচন করুন\n'
-              '• প্রতিটি গ্রাহকের জন্য একাধিক পণ্য যোগ করুন\n'
-              '• ভয়েস ইনপুট: "চাল ১০ কেজি ১০০ টাকা"\n'
-              '• সমস্ত পণ্য পর্যালোচনা এবং সংরক্ষণ করুন\n'
-              '• বিবরণ দেখতে এন্ট্রি ট্যাপ করুন',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'বুঝেছি',
-              style: TextStyle(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
+  void _deleteSalesEntry(int saleId) {
+    DialogUtils.showDeleteConfirmDialog(
+      title: 'বিক্রয় মুছুন',
+      message: 'আপনি কি এই বিক্রয় এন্ট্রি মুছতে চান?',
+      onConfirm: () => controller.deleteSalesEntry(saleId),
     );
   }
 
-  void _deleteSalesEntry(BuildContext context, int saleId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'বিক্রয় মুছুন',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        content: const Text(
-          'আপনি কি এই বিক্রয় এন্ট্রি মুছতে চান?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'বাতিল',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              controller.deleteSalesEntry(saleId);
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'মুছুন',
-              style: TextStyle(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _viewSalesDetails(SalesModel sale) {
+    // Convert SalesModel details to SalesDetailItem list
+    final items = sale.salSalesDetails.map((detail) {
+      return SalesDetailItem(
+        description: detail.productDescription,
+        remarks: detail.remarks,
+        amount: detail.amount,
+      );
+    }).toList();
 
-  void _viewSalesDetails(BuildContext context, SalesModel sale) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 600),
-          color: AppColors.surface,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.receipt_long, color: Colors.white, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'বিক্রয় বিবরণ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            sale.salePartyName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            sale.saleNo,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white60,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              // Products List
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.all(20),
-                  itemCount: sale.salSalesDetails.length,
-                  itemBuilder: (context, index) {
-                    final detail = sale.salSalesDetails[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  detail.productDescription,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                if (detail.remarks != null && detail.remarks!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    detail.remarks!,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '৳${detail.amount.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Total
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'মোট পরিমাণ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      '৳${sale.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    DialogUtils.showSalesDetailsDialog(
+      saleNo: sale.saleNo,
+      partyName: sale.salePartyName,
+      items: items,
+      totalAmount: sale.totalAmount,
     );
   }
 
@@ -306,7 +88,7 @@ class SalesScreen extends StatelessWidget {
             ),
             child: IconButton(
               icon: const Icon(Icons.help_outline, color: AppColors.textPrimary),
-              onPressed: () => _showHelpDialog(context),
+              onPressed: DialogUtils.showHelpDialog,
             ),
           ),
         ],
@@ -522,7 +304,7 @@ class SalesScreen extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: () => _viewSalesDetails(context, sale),
+                          onTap: () => _viewSalesDetails(sale),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Row(
@@ -576,7 +358,7 @@ class SalesScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 6),
                                     GestureDetector(
-                                      onTap: () => _deleteSalesEntry(context, sale.id),
+                                      onTap: () => _deleteSalesEntry(sale.id),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
