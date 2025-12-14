@@ -366,9 +366,9 @@ class PurchaseEntryController extends GetxController with GetTickerProviderState
   void addProduct() {
     final product = productController.text.trim();
     final quantity = double.tryParse(quantityController.text) ?? 0;
-    final price = double.tryParse(priceController.text) ?? 0;
+    final totalPrice = double.tryParse(priceController.text) ?? 0;
 
-    if (product.isEmpty || quantity <= 0 || price <= 0) {
+    if (product.isEmpty || quantity <= 0 || totalPrice <= 0) {
       Get.snackbar(
         'ত্রুটি',
         'সব ফিল্ড সঠিকভাবে পূরণ করুন',
@@ -383,8 +383,7 @@ class PurchaseEntryController extends GetxController with GetTickerProviderState
       'productName': product,
       'quantity': quantity,
       'unit': selectedUnit.value,
-      'price': price,
-      'total': quantity * price,
+      'total': totalPrice,
     });
 
     _calculateTotal();
@@ -454,7 +453,7 @@ class PurchaseEntryController extends GetxController with GetTickerProviderState
       // Prepare purchase details
       final purchaseDetails = products.map((product) {
         return {
-          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']} @ ${product['price']}',
+          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']}',
           'amount': product['total'],
           'remarks': '',
         };

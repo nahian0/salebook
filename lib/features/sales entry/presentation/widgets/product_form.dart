@@ -1,3 +1,5 @@
+// lib/features/sales/presentation/widgets/product_form.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -96,7 +98,6 @@ class ProductForm extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: Obx(() {
-                  // ✅ FIX: Access observables at the start
                   final selectedUnit = controller.selectedUnit.value;
                   final units = controller.units;
 
@@ -143,13 +144,15 @@ class ProductForm extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Price
+          // Total Price (changed from unit price)
           TextField(
             controller: controller.priceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'প্রতি ইউনিট মূল্য (৳)',
+              labelText: 'মোট মূল্য (৳)',
               labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              hintText: 'যেমন: ৫০০',
+              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
               filled: true,
               fillColor: AppColors.background,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

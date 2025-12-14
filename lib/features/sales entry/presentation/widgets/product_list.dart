@@ -1,3 +1,5 @@
+// lib/features/sales/presentation/widgets/product_list.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -13,36 +15,35 @@ class ProductsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Obx(() {
-              // ✅ FIX: Access observable first
-              final productsCount = controller.products.length;
-              return Text(
-                'প্রোডাক্ট ($productsCount)',
+    return Obx(() {
+      final products = controller.products.toList();
+
+      if (products.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'প্রোডাক্ট (${products.length})',
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
-              );
-            }),
-          ),
-          Obx(() {
-            // ✅ FIX: Access observable first and create a copy
-            final products = controller.products.toList();
-
-            return ListView.separated(
+              ),
+            ),
+            ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: products.length,
@@ -60,11 +61,11 @@ class ProductsList extends StatelessWidget {
                   onDelete: () => controller.deleteProduct(index),
                 );
               },
-            );
-          }),
-        ],
-      ),
-    );
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -118,7 +119,7 @@ class _ProductItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${product['quantity']} ${product['unit']} × ৳${product['price'].toStringAsFixed(2)}',
+                  '${product['quantity']} ${product['unit']}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,

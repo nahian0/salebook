@@ -1,3 +1,5 @@
+// lib/features/sales/presentation/controller/sales_entry_controller.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/services/speech_services.dart';
@@ -26,7 +28,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final isCreatingParty = false.obs;
   final isTypingCustomer = false.obs;
 
-  // Repository - Now using single repository
+  // Repository
   final SalesEntryRepository _repository = SalesEntryRepository();
 
   // Speech service
@@ -62,7 +64,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   }
 
   Future<void> _initializeController() async {
-    // Load company ID and user ID from storage
+    // Load company ID from storage
     companyId = await StorageService.getCompanyId();
 
     if (companyId == null) {
@@ -366,9 +368,9 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   void addProduct() {
     final product = productController.text.trim();
     final quantity = double.tryParse(quantityController.text) ?? 0;
-    final price = double.tryParse(priceController.text) ?? 0;
+    final totalPrice = double.tryParse(priceController.text) ?? 0;
 
-    if (product.isEmpty || quantity <= 0 || price <= 0) {
+    if (product.isEmpty || quantity <= 0 || totalPrice <= 0) {
       Get.snackbar(
         'ত্রুটি',
         'সব ফিল্ড সঠিকভাবে পূরণ করুন',
@@ -383,8 +385,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       'productName': product,
       'quantity': quantity,
       'unit': selectedUnit.value,
-      'price': price,
-      'total': quantity * price,
+      'total': totalPrice,
     });
 
     _calculateTotal();
@@ -462,7 +463,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       // Prepare sales details
       final salesDetails = products.map((product) {
         return {
-          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']} @ ${product['price']}',
+          'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']}',
           'amount': product['total'],
           'remarks': '',
         };

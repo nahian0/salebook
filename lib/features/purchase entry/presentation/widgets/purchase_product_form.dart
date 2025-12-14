@@ -144,13 +144,15 @@ class PurchaseProductForm extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Price
+          // Total Price
           TextField(
             controller: controller.priceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'প্রতি ইউনিট মূল্য (৳)',
+              labelText: 'মোট মূল্য (৳)',
               labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              hintText: 'যেমন: ৫০০',
+              hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
               filled: true,
               fillColor: AppColors.background,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
