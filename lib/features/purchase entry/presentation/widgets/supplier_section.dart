@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/dialog_utils.dart';
 import '../controller/purchase_entry_controller.dart';
 
 class SupplierSection extends StatelessWidget {
@@ -12,6 +13,26 @@ class SupplierSection extends StatelessWidget {
     super.key,
     required this.controller,
   });
+
+  Future<void> _showSupplierDialog(BuildContext context) async {
+    final result = await DialogUtils.showSupplierSelectionDialog(
+      context: context,
+      title: 'সরবরাহকারী নির্বাচন করুন',
+      items: controller.supplierList.toList(),
+      itemLabel: (supplier) => supplier.name,
+      selectedItem: controller.selectedSupplier.value,
+      searchHint: 'সরবরাহকারীর নাম খুঁজুন...',
+      emptyMessage: 'কোন সরবরাহকারী পাওয়া যায়নি',
+      showNoneOption: true,
+      noneOptionLabel: 'কোন সরবরাহকারী নেই',
+    );
+
+    if (result == null) {
+      controller.clearSupplier();
+    } else {
+      controller.selectedSupplier.value = result;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +157,6 @@ class SupplierSection extends StatelessWidget {
             final selectedSupplier = controller.selectedSupplier.value;
             final isLoading = controller.isLoadingParties.value;
             final isTypingSupplier = controller.isTypingSupplier.value;
-            final supplierList = controller.supplierList.toList();
 
             // Show text field when typing new supplier
             if (isTypingSupplier) {
@@ -194,63 +214,42 @@ class SupplierSection extends StatelessWidget {
               );
             }
 
-            return Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int?>(
-                  value: selectedSupplier?.id,
-                  hint: const Text(
-                    'সরবরাহকারী নির্বাচন করুন (ঐচ্ছিক)',
-                    style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
-                  ),
-                  isExpanded: true,
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
+            // Supplier selection button
+            return InkWell(
+              onTap: () => _showSupplierDialog(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selectedSupplier != null ? Icons.business : Icons.business_outlined,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Text(
-                        'কোন সরবরাহকারী নেই',
+                        selectedSupplier?.name ?? 'সরবরাহকারী নির্বাচন করুন (ঐচ্ছিক)',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.textSecondary,
-                          fontStyle: FontStyle.italic,
+                          color: selectedSupplier != null
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
                         ),
                       ),
                     ),
-                    ...supplierList.map((supplier) {
-                      return DropdownMenuItem(
-                        value: supplier.id,
-                        child: Text(
-                          supplier.name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      );
-                    }),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.textSecondary,
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value == null) {
-                      controller.clearSupplier();
-                    } else {
-                      final selected = supplierList.firstWhereOrNull(
-                            (supplier) => supplier.id == value,
-                      );
-                      if (selected != null) {
-                        controller.selectedSupplier.value = selected;
-                      }
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: AppColors.textSecondary,
-                  ),
                 ),
               ),
             );
@@ -259,7 +258,7 @@ class SupplierSection extends StatelessWidget {
           Obx(() {
             final isTypingSupplier = controller.isTypingSupplier.value;
             if (isTypingSupplier) {
-              return Text(
+              return const Text(
                 'টিপস: নাম টাইপ করে "সংরক্ষণ" চাপুন',
                 style: TextStyle(
                   fontSize: 11,
@@ -268,7 +267,7 @@ class SupplierSection extends StatelessWidget {
                 ),
               );
             }
-            return Text(
+            return const Text(
               'টিপস: ভয়েস বাটন দিয়ে সরবরাহকারীর নাম বলতে পারবেন বা "নতুন যোগ করুন" চাপুন',
               style: TextStyle(
                 fontSize: 11,

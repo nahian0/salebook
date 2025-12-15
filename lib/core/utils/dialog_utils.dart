@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../models/purchase_details_item.dart';
 import '../models/sales_details_item.dart';
+import '../theme/app_colors.dart';
 
 class DialogUtils {
   /// Show dialog when user tries to login from different device
@@ -1723,5 +1724,318 @@ class DialogUtils {
       Get.back();
     }
   }
+
+
+  static Future<T?> showCustomerSelectionDialog<T>({
+    required BuildContext context,
+    required String title,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    T? selectedItem,
+    String searchHint = 'অনুসন্ধান করুন...',
+    String emptyMessage = 'কোন আইটেম পাওয়া যায়নি',
+    bool showNoneOption = true,
+    String noneOptionLabel = 'কোন গ্রাহক নেই',
+  }) async {
+    return showDialog<T?>(
+      context: context,
+      builder: (BuildContext context) {
+        return _CustomerSelectionDialog<T>(
+          title: title,
+          items: items,
+          itemLabel: itemLabel,
+          selectedItem: selectedItem,
+          searchHint: searchHint,
+          emptyMessage: emptyMessage,
+          showNoneOption: showNoneOption,
+          noneOptionLabel: noneOptionLabel,
+        );
+      },
+    );
+  }
+
+  static Future<T?> showSupplierSelectionDialog<T>({
+    required BuildContext context,
+    required String title,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    T? selectedItem,
+    String searchHint = 'অনুসন্ধান করুন...',
+    String emptyMessage = 'কোন আইটেম পাওয়া যায়নি',
+    bool showNoneOption = true,
+    String noneOptionLabel = 'কোন সরবরাহকারী নেই',
+  }) async {
+    return showDialog<T?>(
+      context: context,
+      builder: (BuildContext context) {
+        return _CustomerSelectionDialog<T>(
+          title: title,
+          items: items,
+          itemLabel: itemLabel,
+          selectedItem: selectedItem,
+          searchHint: searchHint,
+          emptyMessage: emptyMessage,
+          showNoneOption: showNoneOption,
+          noneOptionLabel: noneOptionLabel,
+        );
+      },
+    );
+  }
+
 }
+
+class _CustomerSelectionDialog<T> extends StatefulWidget {
+  final String title;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final T? selectedItem;
+  final String searchHint;
+  final String emptyMessage;
+  final bool showNoneOption;
+  final String noneOptionLabel;
+
+  const _CustomerSelectionDialog({
+    required this.title,
+    required this.items,
+    required this.itemLabel,
+    this.selectedItem,
+    required this.searchHint,
+    required this.emptyMessage,
+    required this.showNoneOption,
+    required this.noneOptionLabel,
+  });
+
+  @override
+  State<_CustomerSelectionDialog<T>> createState() => _CustomerSelectionDialogState<T>();
+}
+
+class _CustomerSelectionDialogState<T> extends State<_CustomerSelectionDialog<T>> {
+  final TextEditingController _searchController = TextEditingController();
+  List<T> _filteredItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredItems = widget.items;
+    _searchController.addListener(_filterItems);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterItems() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredItems = widget.items;
+      } else {
+        _filteredItems = widget.items.where((item) {
+          return widget.itemLabel(item).toLowerCase().contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search Field
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: widget.searchHint,
+                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear, color: AppColors.textSecondary),
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                  )
+                      : null,
+                  filled: true,
+                  fillColor: AppColors.background,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                ),
+              ),
+            ),
+
+            // Items List
+            Flexible(
+              child: _filteredItems.isEmpty
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 48,
+                        color: AppColors.textTertiary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.emptyMessage,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+                  : ListView.builder(
+                shrinkWrap: true,
+                itemCount: _filteredItems.length + (widget.showNoneOption ? 1 : 0),
+                itemBuilder: (context, index) {
+                  // None option
+                  if (widget.showNoneOption && index == 0) {
+                    final isSelected = widget.selectedItem == null;
+                    return InkWell(
+                      onTap: () => Navigator.of(context).pop(null),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primaryLight.withOpacity(0.1) : null,
+                          border: const Border(
+                            bottom: BorderSide(color: AppColors.borderLight),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                widget.noneOptionLabel,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Regular items
+                  final itemIndex = widget.showNoneOption ? index - 1 : index;
+                  final item = _filteredItems[itemIndex];
+                  final isSelected = widget.selectedItem == item;
+                  final label = widget.itemLabel(item);
+
+                  return InkWell(
+                    onTap: () => Navigator.of(context).pop(item),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primaryLight.withOpacity(0.1) : null,
+                        border: const Border(
+                          bottom: BorderSide(color: AppColors.borderLight),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textPrimary,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
 

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/dialog_utils.dart';
 import '../controller/sales_entry_controller.dart';
 
 class CustomerSection extends StatelessWidget {
@@ -12,6 +13,26 @@ class CustomerSection extends StatelessWidget {
     super.key,
     required this.controller,
   });
+
+  Future<void> _showCustomerDialog(BuildContext context) async {
+    final result = await DialogUtils.showCustomerSelectionDialog(
+      context: context,
+      title: 'গ্রাহক নির্বাচন করুন',
+      items: controller.customerList.toList(),
+      itemLabel: (customer) => customer.name,
+      selectedItem: controller.selectedCustomer.value,
+      searchHint: 'গ্রাহকের নাম খুঁজুন...',
+      emptyMessage: 'কোন গ্রাহক পাওয়া যায়নি',
+      showNoneOption: true,
+      noneOptionLabel: 'কোন গ্রাহক নেই',
+    );
+
+    if (result == null) {
+      controller.clearCustomer();
+    } else {
+      controller.selectedCustomer.value = result;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +157,6 @@ class CustomerSection extends StatelessWidget {
             final selectedCustomer = controller.selectedCustomer.value;
             final isLoading = controller.isLoadingParties.value;
             final isTypingCustomer = controller.isTypingCustomer.value;
-            final customerList = controller.customerList.toList();
 
             // Show text field when typing new customer
             if (isTypingCustomer) {
@@ -194,63 +214,42 @@ class CustomerSection extends StatelessWidget {
               );
             }
 
-            return Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int?>(
-                  value: selectedCustomer?.id,
-                  hint: const Text(
-                    'গ্রাহক নির্বাচন করুন (ঐচ্ছিক)',
-                    style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
-                  ),
-                  isExpanded: true,
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
+            // Customer selection button
+            return InkWell(
+              onTap: () => _showCustomerDialog(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selectedCustomer != null ? Icons.person : Icons.person_outline,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Text(
-                        'কোন গ্রাহক নেই',
+                        selectedCustomer?.name ?? 'গ্রাহক নির্বাচন করুন (ঐচ্ছিক)',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.textSecondary,
-                          fontStyle: FontStyle.italic,
+                          color: selectedCustomer != null
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
                         ),
                       ),
                     ),
-                    ...customerList.map((customer) {
-                      return DropdownMenuItem(
-                        value: customer.id,
-                        child: Text(
-                          customer.name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      );
-                    }),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.textSecondary,
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value == null) {
-                      controller.clearCustomer();
-                    } else {
-                      final selected = customerList.firstWhereOrNull(
-                            (customer) => customer.id == value,
-                      );
-                      if (selected != null) {
-                        controller.selectedCustomer.value = selected;
-                      }
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: AppColors.textSecondary,
-                  ),
                 ),
               ),
             );
@@ -259,7 +258,7 @@ class CustomerSection extends StatelessWidget {
           Obx(() {
             final isTypingCustomer = controller.isTypingCustomer.value;
             if (isTypingCustomer) {
-              return Text(
+              return const Text(
                 'টিপস: নাম টাইপ করে "সংরক্ষণ" চাপুন',
                 style: TextStyle(
                   fontSize: 11,
@@ -268,7 +267,7 @@ class CustomerSection extends StatelessWidget {
                 ),
               );
             }
-            return Text(
+            return const Text(
               'টিপস: ভয়েস বাটন দিয়ে গ্রাহকের নাম বলতে পারবেন বা "নতুন যোগ করুন" চাপুন',
               style: TextStyle(
                 fontSize: 11,
