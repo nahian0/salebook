@@ -101,6 +101,19 @@ class ProductForm extends StatelessWidget {
                   final selectedUnit = controller.selectedUnit.value;
                   final units = controller.units;
 
+                  // CRITICAL FIX: Ensure the selected unit is valid
+                  // If the current selected unit is not in the list, use the first unit
+                  final validSelectedUnit = units.contains(selectedUnit)
+                      ? selectedUnit
+                      : units.first;
+
+                  // If we had to fallback, update the controller
+                  if (validSelectedUnit != selectedUnit) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      controller.selectedUnit.value = validSelectedUnit;
+                    });
+                  }
+
                   return Container(
                     height: 48,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -111,7 +124,7 @@ class ProductForm extends StatelessWidget {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: selectedUnit,
+                        value: validSelectedUnit,
                         isExpanded: true,
                         items: units.map((unit) {
                           return DropdownMenuItem(

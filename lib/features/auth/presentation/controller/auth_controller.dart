@@ -3,6 +3,8 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:io';
 import '../../../../routes/app_routes.dart';
 import '../../data/repositories/company_repository.dart';
@@ -18,38 +20,100 @@ class AuthController extends GetxController {
   final RxBool isLoggedIn = false.obs;
   final RxString deviceId = ''.obs;
 
+  static const String _deviceIdKey = 'unique_device_id';
+
   @override
   void onInit() {
     super.onInit();
     _initializeDeviceId();
   }
 
-  /// Initialize and get device ID
+  /// Initialize and get device ID using multiple fallback methods
   Future<void> _initializeDeviceId() async {
     try {
-      String id = '';
-      if (Platform.isAndroid) {
-        AndroidDeviceInfo androidInfo = await _deviceInfo.androidInfo;
-        id = androidInfo.id;
+      final prefs = await SharedPreferences.getInstance();
 
-        if (id.isEmpty) {
-          id = '${androidInfo.model}_${androidInfo.device}_${androidInfo.brand}';
-        }
-      } else if (Platform.isIOS) {
-        IosDeviceInfo iosInfo = await _deviceInfo.iosInfo;
-        id = iosInfo.identifierForVendor ?? '';
+      // Check if we already have a stored device ID
+      String? storedId = prefs.getString(_deviceIdKey);
+
+      if (storedId != null && storedId.isNotEmpty) {
+        deviceId.value = storedId;
+        print('📱 Using stored Device ID: $storedId');
+        return;
       }
 
-      if (id.isEmpty) {
-        id = 'device_${DateTime.now().millisecondsSinceEpoch}';
-      }
+      // Generate new device ID using multiple sources
+      String id = await _generateDeviceId();
 
+      // Store the generated ID for future use
+      await prefs.setString(_deviceIdKey, id);
       deviceId.value = id;
-      print('📱 Device ID: $id');
+      print('📱 Generated new Device ID: $id');
     } catch (e) {
       print('❌ Error getting device ID: $e');
-      deviceId.value = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      // Generate a fallback UUID if everything fails
+      final fallbackId = const Uuid().v4();
+      deviceId.value = fallbackId;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_deviceIdKey, fallbackId);
+      } catch (_) {}
     }
+  }
+
+  /// Generate device ID using device information
+  Future<String> _generateDeviceId() async {
+    try {
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await _deviceInfo.androidInfo;
+
+        // Use androidId (most reliable for Android)
+        String androidId = androidInfo.id; // This is actually androidId, not the deprecated id
+
+        // Create a unique identifier combining multiple factors
+        String combined = '${androidInfo.model}_${androidInfo.device}_$androidId';
+
+        print('🤖 Android Device Info:');
+        print('   Model: ${androidInfo.model}');
+        print('   Device: ${androidInfo.device}');
+        print('   Android ID: $androidId');
+        print('   Combined: $combined');
+
+        return _generateHashFromString(combined);
+
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await _deviceInfo.iosInfo;
+
+        // Use identifierForVendor
+        String? iosId = iosInfo.identifierForVendor;
+
+        if (iosId != null && iosId.isNotEmpty) {
+          print('🍎 iOS Device ID: $iosId');
+          return iosId;
+        }
+
+        // Fallback for iOS
+        String combined = '${iosInfo.name}_${iosInfo.model}_${iosInfo.systemVersion}';
+        print('🍎 iOS Fallback ID: $combined');
+        return _generateHashFromString(combined);
+      }
+    } catch (e) {
+      print('❌ Error in _generateDeviceId: $e');
+    }
+
+    // Ultimate fallback - generate UUID
+    return const Uuid().v4();
+  }
+
+  /// Generate a consistent hash from string (simple version)
+  String _generateHashFromString(String input) {
+    int hash = 0;
+    for (int i = 0; i < input.length; i++) {
+      hash = ((hash << 5) - hash) + input.codeUnitAt(i);
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return 'dev_${hash.abs()}_${const Uuid().v4().substring(0, 8)}';
   }
 
   /// Check if user is already logged in
@@ -69,7 +133,13 @@ class AuthController extends GetxController {
 
     try {
       isLoading.value = true;
-      await Future.delayed(const Duration(milliseconds: 1000));
+
+      // Ensure device ID is initialized
+      if (deviceId.value.isEmpty) {
+        await _initializeDeviceId();
+      }
+
+      await Future.delayed(const Duration(milliseconds: 500));
 
       final loggedIn = await _repository.isUserLoggedIn();
       isLoggedIn.value = loggedIn;
@@ -104,8 +174,15 @@ class AuthController extends GetxController {
       return;
     }
 
-    if (deviceId.value.isEmpty || deviceId.value == 'unknown') {
+    // Ensure device ID is properly initialized
+    if (deviceId.value.isEmpty) {
       await _initializeDeviceId();
+    }
+
+    // Double check device ID is valid
+    if (deviceId.value.isEmpty) {
+      _showError('ডিভাইস আইডি পাওয়া যায়নি। অ্যাপ পুনরায় চালু করুন।');
+      return;
     }
 
     try {
@@ -146,11 +223,12 @@ class AuthController extends GetxController {
     try {
       DialogUtils.showLoadingDialog(message: 'কোড পাঠানো হচ্ছে...');
 
-      if (deviceId.value.isEmpty || deviceId.value == 'unknown') {
+      if (deviceId.value.isEmpty) {
         await _initializeDeviceId();
       }
 
       print('📤 Requesting verification code for device registration');
+      print('📱 Using Device ID: ${deviceId.value}');
 
       final result = await _repository.sendVerificationCode(
         phoneNo: phone,
@@ -201,8 +279,14 @@ class AuthController extends GetxController {
       return;
     }
 
-    if (deviceId.value.isEmpty || deviceId.value == 'unknown') {
+    // Ensure device ID is properly initialized
+    if (deviceId.value.isEmpty) {
       await _initializeDeviceId();
+    }
+
+    if (deviceId.value.isEmpty) {
+      _showError('ডিভাইস আইডি পাওয়া যায়নি। অ্যাপ পুনরায় চালু করুন।');
+      return;
     }
 
     try {
@@ -224,7 +308,6 @@ class AuthController extends GetxController {
         await Future.delayed(const Duration(milliseconds: 500));
         Get.offAllNamed(AppRoutes.home);
       } else if (result.alreadyExists) {
-        // Company already exists - show dialog to login
         String? companyName;
         if (result.companyData != null && result.companyData!['name'] != null) {
           companyName = result.companyData!['name'];
@@ -264,6 +347,13 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// Manual method to refresh device ID (for debugging)
+  Future<void> refreshDeviceId() async {
+    print('🔄 Refreshing device ID...');
+    await _initializeDeviceId();
+    _showSuccess('ডিভাইস আইডি রিফ্রেশ করা হয়েছে: ${deviceId.value}');
   }
 
   void goToCreateCompany() => Get.toNamed(AppRoutes.createCompany);

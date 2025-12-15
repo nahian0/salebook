@@ -1,3 +1,5 @@
+// Complete VoiceParserProductUpdated with Enhanced Number Extraction
+
 class VoiceParserProductUpdated {
   // Comprehensive product database with Bangla names and variations
   static const Map<String, Map<String, dynamic>> _productDatabase = {
@@ -406,108 +408,264 @@ class VoiceParserProductUpdated {
 
   // All supported units with their variations
   static const Map<String, List<String>> _unitVariations = {
-    'Piece': ['piece', 'pieces', 'pcs', 'pc', 'ta', 'টা', 'টি', 'khana', 'খানা', 'খান'],
-    'Kilogram (kg)': [
-      'kilogram', 'kilograms', 'kg', 'kgs', 'kilo', 'kilos',
-      'কেজি', 'কিলোগ্রাম', 'কিলো'
+    'কেজি': [
+      'কেজি', 'কিলোগ্রাম', 'কিলো', 'কেজিএম',
+      'kilogram', 'kilograms', 'kg', 'kgs', 'kilo', 'kilos'
     ],
-    'Gram (g)': ['gram', 'grams', 'g', 'gm', 'gms', 'গ্রাম'],
-    'Liter (L)': ['liter', 'liters', 'litre', 'litres', 'l', 'লিটার'],
-    'Milliliter (ml)': [
-      'milliliter', 'milliliters', 'millilitre', 'millilitres', 'ml',
-      'মিলিলিটার', 'এমএল'
+    'গ্রাম': [
+      'গ্রাম',
+      'gram', 'grams', 'g', 'gm', 'gms'
     ],
-    'Meter (m)': ['meter', 'meters', 'metre', 'metres', 'm', 'মিটার'],
-    'Centimeter (cm)': [
-      'centimeter', 'centimeters', 'centimetre', 'centimetres', 'cm',
-      'সেন্টিমিটার', 'সেমি'
+    'লিটার': [
+      'লিটার',
+      'liter', 'liters', 'litre', 'litres', 'l'
     ],
-    'Box': ['box', 'boxes', 'বক্স', 'বাক্স'],
-    'Dozen': ['dozen', 'doz', 'ডজন'],
-    'Pack': ['pack', 'packs', 'packet', 'packets', 'প্যাকেট', 'প্যাক', 'প্যাকেজ'],
+    'মিলিলিটার': [
+      'মিলিলিটার', 'এমএল',
+      'milliliter', 'milliliters', 'millilitre', 'millilitres', 'ml'
+    ],
+    'পিস': [
+      'পিস', 'টা', 'টি', 'খানা', 'খান',
+      'piece', 'pieces', 'pcs', 'pc', 'ta'
+    ],
+    'ডজন': [
+      'ডজন',
+      'dozen', 'doz'
+    ],
+    'প্যাক': [
+      'প্যাক', 'প্যাকেট', 'প্যাকেজ',
+      'pack', 'packs', 'packet', 'packets', 'package', 'packages'
+    ],
+    'বক্স': [
+      'বক্স', 'বাক্স',
+      'box', 'boxes'
+    ],
+    'বোতল': [
+      'বোতল',
+      'bottle', 'bottles', 'btl'
+    ],
+    'ক্যান': [
+      'ক্যান', 'ক্যান',
+      'can', 'cans', 'tin', 'tins'
+    ],
+    'ব্যাগ': [
+      'ব্যাগ', 'থলে',
+      'bag', 'bags', 'sack', 'sacks'
+    ],
+    'বান্ডিল': [
+      'বান্ডিল', 'বান্ডেল', 'আঁটি',
+      'bundle', 'bundles', 'bunch', 'bunches'
+    ],
+    'কার্টন': [
+      'কার্টন',
+      'carton', 'cartons'
+    ],
+    'জার': [
+      'জার',
+      'jar', 'jars'
+    ],
+    'পাউন্ড': [
+      'পাউন্ড',
+      'pound', 'pounds', 'lb', 'lbs'
+    ],
+    'টন': [
+      'টন', 'মেট্রিক টন',
+      'ton', 'tons', 'tonne', 'tonnes', 'mt'
+    ],
+    'কুইন্টাল': [
+      'কুইন্টাল', 'মণ',
+      'quintal', 'quintals', 'mon', 'maund'
+    ],
+    'সের': [
+      'সের',
+      'ser', 'seer'
+    ],
+    'ছটাক': [
+      'ছটাক',
+      'chhatak', 'chattak'
+    ],
+    'গজ': [
+      'গজ',
+      'yard', 'yards', 'yd', 'yds'
+    ],
+    'ফুট': [
+      'ফুট',
+      'foot', 'feet', 'ft'
+    ],
+    'ইঞ্চি': [
+      'ইঞ্চি',
+      'inch', 'inches', 'in'
+    ],
+    'বর্গফুট': [
+      'বর্গফুট', 'স্কয়ার ফিট',
+      'square foot', 'square feet', 'sqft', 'sq ft'
+    ],
+    'বর্গমিটার': [
+      'বর্গমিটার', 'স্কয়ার মিটার',
+      'square meter', 'square metre', 'sqm', 'sq m'
+    ],
+    'বস্তা': [
+      'বস্তা',
+      'bosta', 'sack'
+    ],
+    'কাপ': [
+      'কাপ',
+      'cup', 'cups'
+    ],
+    'চামচ': [
+      'চামচ', 'চা চামচ',
+      'spoon', 'spoons', 'teaspoon', 'teaspoons', 'tsp'
+    ],
+    'টেবিল চামচ': [
+      'টেবিল চামচ', 'টেবিল-চামচ',
+      'tablespoon', 'tablespoons', 'tbsp'
+    ],
+    'গ্লাস': [
+      'গ্লাস',
+      'glass', 'glasses'
+    ],
+    'প্লেট': [
+      'প্লেট',
+      'plate', 'plates'
+    ],
+    'বালতি': [
+      'বালতি',
+      'bucket', 'buckets', 'pail', 'pails'
+    ],
+    'ড্রাম': [
+      'ড্রাম',
+      'drum', 'drums', 'barrel', 'barrels'
+    ],
+    'রোল': [
+      'রোল',
+      'roll', 'rolls'
+    ],
+    'শীট': [
+      'শীট',
+      'sheet', 'sheets'
+    ],
+    'সেট': [
+      'সেট',
+      'set', 'sets'
+    ],
+    'জোড়া': [
+      'জোড়া',
+      'pair', 'pairs'
+    ],
   };
 
-  // Bangla numbers (0-10 and common numbers)
-  static const Map<String, String> _banglaNumbers = {
+  // Bangla to English digit mapping
+  static const Map<String, String> _banglaDigits = {
     '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
     '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
   };
 
-  // Number words in Bangla with their numeric values
-  static const Map<String, int> _banglaNumberWords = {
-    'এক': 1, 'দুই': 2, 'তিন': 3, 'চার': 4, 'পাঁচ': 5,
+  // Bangla number words with their numeric values
+  static const Map<String, double> _banglaNumberWords = {
+    // Basic (0-20)
+    'শূন্য': 0, 'এক': 1, 'দুই': 2, 'তিন': 3, 'চার': 4, 'পাঁচ': 5,
     'ছয়': 6, 'সাত': 7, 'আট': 8, 'নয়': 9, 'দশ': 10,
     'এগারো': 11, 'বারো': 12, 'তেরো': 13, 'চৌদ্দ': 14, 'পনেরো': 15,
     'ষোল': 16, 'সতেরো': 17, 'আঠারো': 18, 'উনিশ': 19, 'বিশ': 20,
+
+    // Tens (30-90)
     'ত্রিশ': 30, 'চল্লিশ': 40, 'পঞ্চাশ': 50, 'ষাট': 60,
-    'সত্তর': 70, 'আশি': 80, 'নব্বই': 90, 'শত': 100, 'হাজার': 1000
+    'সত্তর': 70, 'আশি': 80, 'নব্বই': 90,
+
+    // Compound numbers (21-99)
+    'একুশ': 21, 'বাইশ': 22, 'তেইশ': 23, 'চব্বিশ': 24, 'পঁচিশ': 25,
+    'ছাব্বিশ': 26, 'সাতাশ': 27, 'আঠাশ': 28, 'ঊনত্রিশ': 29,
+    'একত্রিশ': 31, 'বত্রিশ': 32, 'তেত্রিশ': 33, 'চৌত্রিশ': 34, 'পঁয়ত্রিশ': 35,
+    'ছত্রিশ': 36, 'সাঁইত্রিশ': 37, 'আটত্রিশ': 38, 'ঊনচল্লিশ': 39,
+    'একচল্লিশ': 41, 'বিয়াল্লিশ': 42, 'তেতাল্লিশ': 43, 'চুয়াল্লিশ': 44, 'পঁয়তাল্লিশ': 45,
+    'ছেচল্লিশ': 46, 'সাতচল্লিশ': 47, 'আটচল্লিশ': 48, 'ঊনপঞ্চাশ': 49,
+    'একান্ন': 51, 'বাহান্ন': 52, 'তিপ্পান্ন': 53, 'চুয়ান্ন': 54, 'পঞ্চান্ন': 55,
+    'ছাপ্পান্ন': 56, 'সাতান্ন': 57, 'আটান্ন': 58, 'ঊনষাট': 59,
+    'একষট্টি': 61, 'বাষট্টি': 62, 'তেষট্টি': 63, 'চৌষট্টি': 64, 'পঁয়সট্টি': 65,
+    'ছেষট্টি': 66, 'সাতষট্টি': 67, 'আটষট্টি': 68, 'ঊনসত্তর': 69,
+    'একাত্তর': 71, 'বাহাত্তর': 72, 'তিয়াত্তর': 73, 'চুয়াত্তর': 74, 'পঁচাত্তর': 75,
+    'ছিয়াত্তর': 76, 'সাতাত্তর': 77, 'আটাত্তর': 78, 'ঊনআশি': 79,
+    'একাশি': 81, 'বিরাশি': 82, 'তিরাশি': 83, 'চুরাশি': 84, 'পঁচাশি': 85,
+    'ছিয়াশি': 86, 'সাতাশি': 87, 'আটাশি': 88, 'ঊননব্বই': 89,
+    'একানব্বই': 91, 'বিরানব্বই': 92, 'তিরানব্বই': 93, 'চুরানব্বই': 94, 'পঁচানব্বই': 95,
+    'ছিয়ানব্বই': 96, 'সাতানব্বই': 97, 'আটানব্বই': 98, 'নিরানব্বই': 99,
+
+    // Multipliers
+    'শত': 100, 'হাজার': 1000,
+
+    // Common fractions
+    'আধা': 0.5, 'সাড়ে': 0.5, 'পৌনে': 0.75, 'ডেড়': 1.5, 'আড়াই': 2.5,
+    'সাড়েতিন': 3.5, 'সাড়েচার': 4.5, 'সাড়েপাঁচ': 5.5,
   };
 
-  // English number words with their numeric values
-  static const Map<String, int> _englishNumberWords = {
+  // English number words
+  static const Map<String, double> _englishNumberWords = {
     'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
     'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
     'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
     'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
     'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
     'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90,
-    'hundred': 100, 'thousand': 1000
+    'hundred': 100, 'thousand': 1000,
   };
 
-  // Price indicators in Bangla
+  // Price indicators
   static const List<String> _priceIndicators = [
     'টাকা', 'taka', 'tk', 'rupees', 'rupee', 'টক', 'price', 'dam', 'দাম'
   ];
 
-  // Common filler words to remove (including Bangla)
-  static const List<String> _fillerWords = [
-    'add', 'new', 'product', 'item', 'in', 'of', 'the', 'a', 'an',
-    'please', 'i', 'want', 'to', 'need', 'at', 'for', 'per',
-    'একটি', 'নতুন', 'দিন', 'চাই', 'লাগবে', 'নিতে', 'এ', 'তে'
-  ];
-
   /// Main method: Parse complete voice input and extract all fields
-  /// Input format examples: "চাল ১০ কেজি ১০০ টাকা" or "Rice 10 kg 100 taka"
   static Map<String, String> parseFullProductInput(String input) {
     if (input.trim().isEmpty) {
       return {
         'productName': '',
         'quantity': '',
-        'unit': 'Kilogram (kg)',
+        'unit': 'লিটার',
         'price': '',
       };
     }
 
+    print('\n=== PARSING FULL PRODUCT INPUT ===');
     String cleaned = input.trim();
     String cleanedLower = cleaned.toLowerCase();
+    print('Original input: "$input"');
+    print('Cleaned input: "$cleaned"');
+    print('Lowercase input: "$cleanedLower"');
 
-    // Convert Bangla numbers to English
-    cleaned = _convertBanglaNumbers(cleaned);
-    cleanedLower = _convertBanglaNumbers(cleanedLower);
+    // Step 1: Extract product name from ORIGINAL text
+    String productName = _extractProductNameBeforeNumbers(cleaned);
+    print('Extracted product name: "$productName"');
 
-    // Extract product name (first word/words before any number)
-    String productName = _extractProductNameSimple(cleaned);
-
-    // Match product from database to get proper name and default unit
+    // Step 2: Match product from database
     String? matchedProduct = _matchProductFromDatabase(productName.toLowerCase());
+    print('Matched product from DB: $matchedProduct');
 
-    // Extract all numeric values
-    List<double> numbers = _extractAllNumbers(cleanedLower);
+    // Step 3: Extract all numeric values
+    List<double> numbers = _extractAllNumbers(cleaned);
+    print('Extracted numbers: $numbers');
 
-    // Detect unit
-    String? detectedUnit = _detectUnit(cleanedLower);
-    String finalUnit = 'Kilogram (kg)';
+    // Step 4: Detect unit - IMPORTANT: Use original cleaned text, not lowercase
+    print('\n--- Detecting Unit ---');
+    String? detectedUnit = _detectUnit(cleaned);
+    print('Detected unit from voice: $detectedUnit');
+
+    String finalUnit = 'লিটার';
 
     if (detectedUnit != null) {
       finalUnit = detectedUnit;
+      print('✓ Using detected unit: $finalUnit');
     } else if (matchedProduct != null) {
-      finalUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
+      String defaultUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
+      finalUnit = _convertUnitToBangla(defaultUnit);
+      print('✓ Using default unit from product DB: $finalUnit');
+    } else {
+      print('⚠ No unit detected, using default: $finalUnit');
     }
 
-    // Use matched product if found, otherwise use extracted name
+    // Use matched product if found
     String finalProductName = matchedProduct ?? productName;
 
-    // Parse quantity and price from numbers
+    // Step 5: Parse quantity and price
     String quantity = '';
     String price = '';
 
@@ -518,6 +676,13 @@ class VoiceParserProductUpdated {
       }
     }
 
+    print('\n=== FINAL RESULT ===');
+    print('Product: $finalProductName');
+    print('Quantity: $quantity');
+    print('Unit: $finalUnit');
+    print('Price: $price');
+    print('===================\n');
+
     return {
       'productName': finalProductName,
       'quantity': quantity,
@@ -526,23 +691,35 @@ class VoiceParserProductUpdated {
     };
   }
 
-  /// Simply extract the first word(s) before any number
-  static String _extractProductNameSimple(String text) {
-    // Split by spaces
+  /// Extract product name before any number (digits OR number words)
+  static String _extractProductNameBeforeNumbers(String text) {
     List<String> words = text.trim().split(RegExp(r'\s+'));
-
     String productName = '';
 
     for (String word in words) {
-      // Stop if we encounter a number
+      String wordLower = word.toLowerCase();
+
+      // Stop if we encounter a digit
       if (RegExp(r'\d').hasMatch(word)) {
+        break;
+      }
+
+      // Stop if we encounter a Bangla number word
+      bool isBanglaNumber = _banglaNumberWords.containsKey(wordLower);
+      if (isBanglaNumber) {
+        break;
+      }
+
+      // Stop if we encounter an English number word
+      bool isEnglishNumber = _englishNumberWords.containsKey(wordLower);
+      if (isEnglishNumber) {
         break;
       }
 
       // Stop if we encounter a unit word
       bool isUnit = false;
       for (var variations in _unitVariations.values) {
-        if (variations.any((v) => v.toLowerCase() == word.toLowerCase())) {
+        if (variations.any((v) => v.toLowerCase() == wordLower)) {
           isUnit = true;
           break;
         }
@@ -560,81 +737,59 @@ class VoiceParserProductUpdated {
     return productName.trim();
   }
 
-  /// Extract product name by removing unit, numbers, and filler words
-  static String _extractProductName(String text, String? detectedUnit) {
-    String result = text.toLowerCase();
-
-    result = result.replaceAll(RegExp(r'\d+\.?\d*'), ' ');
-
-    _banglaNumberWords.keys.forEach((numberWord) {
-      result = result.replaceAll(RegExp(r'\s*' + RegExp.escape(numberWord) + r'\s*', unicode: true), ' ');
+  /// Convert Bangla digits to English
+  static String _convertBanglaDigits(String text) {
+    String result = text;
+    _banglaDigits.forEach((bangla, english) {
+      result = result.replaceAll(bangla, english);
     });
-
-    _englishNumberWords.keys.forEach((number) {
-      result = result.replaceAll(RegExp(r'\s*\b' + RegExp.escape(number) + r'\b\s*'), ' ');
-    });
-
-    _unitVariations.values.forEach((variations) {
-      for (String variation in variations) {
-        result = result.replaceAll(
-          RegExp(r'\s*' + RegExp.escape(variation.toLowerCase()) + r'\s*', unicode: true),
-          ' ',
-        );
-      }
-    });
-
-    for (String indicator in _priceIndicators) {
-      result = result.replaceAll(
-        RegExp(r'\s*' + RegExp.escape(indicator.toLowerCase()) + r'\s*', unicode: true),
-        ' ',
-      );
-    }
-
-    for (String filler in _fillerWords) {
-      result = result.replaceAll(
-        RegExp(r'\s*\b' + RegExp.escape(filler.toLowerCase()) + r'\b\s*', unicode: true),
-        ' ',
-      );
-    }
-
-    result = result.trim().replaceAll(RegExp(r'\s+'), ' ');
-
-    String? matchedProduct = _matchProductFromDatabase(result);
-    if (matchedProduct != null) {
-      return matchedProduct;
-    }
-
-    if (result.isNotEmpty) {
-      if (_isEnglishText(result)) {
-        result = result[0].toUpperCase() + result.substring(1);
-      }
-    }
-
-    return result.isEmpty ? 'Unknown Product' : result;
+    return result;
   }
 
-  /// Extract all numeric values from text (including Bangla number words)
-  static List<double> _extractAllNumbers(String text) {
-    List<double> numbers = [];
+  /// Replace number words with their numeric values
+  static String _replaceNumberWords(String text) {
+    String result = text;
 
-    // First, convert Bangla number words to numeric values
-    String processedText = text;
+    // Replace Bangla number words (sort by length descending to match longer phrases first)
+    var sortedBangla = _banglaNumberWords.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
 
-    // Replace Bangla number words with their numeric equivalents
-    _banglaNumberWords.forEach((word, value) {
-      RegExp regex = RegExp(r'\b' + RegExp.escape(word) + r'\b', unicode: true);
-      processedText = processedText.replaceAll(regex, ' $value ');
-    });
+    for (var entry in sortedBangla) {
+      String word = entry.key;
+      double value = entry.value;
+      String numStr = value % 1 == 0 ? value.toInt().toString() : value.toString();
 
-    // Replace English number words with their numeric equivalents
+      // Use word boundary matching for Bangla
+      result = result.replaceAllMapped(
+          RegExp(r'(?:^|\s)' + RegExp.escape(word) + r'(?:\s|$)', unicode: true),
+              (match) {
+            String matched = match.group(0)!;
+            return matched.replaceAll(word, numStr);
+          }
+      );
+    }
+
+    // Replace English number words
     _englishNumberWords.forEach((word, value) {
-      RegExp regex = RegExp(r'\b' + RegExp.escape(word) + r'\b');
-      processedText = processedText.replaceAll(regex, ' $value ');
+      String numStr = value % 1 == 0 ? value.toInt().toString() : value.toString();
+      RegExp regex = RegExp(r'\b' + RegExp.escape(word) + r'\b', caseSensitive: false);
+      result = result.replaceAll(regex, numStr);
     });
 
-    // Extract all numeric values (including decimals)
-    RegExp numberRegex = RegExp(r'\b\d+\.?\d*\b');
-    Iterable<Match> matches = numberRegex.allMatches(processedText);
+    return result;
+  }
+
+  /// Extract all numeric values from text
+  static List<double> _extractAllNumbers(String text) {
+    // First convert number words to digits
+    String processed = _replaceNumberWords(text);
+    // Then convert Bangla digits
+    processed = _convertBanglaDigits(processed);
+
+    // Extract all numeric values
+    List<double> numbers = [];
+    RegExp numberRegex = RegExp(r'\d+\.?\d*');
+    Iterable<Match> matches = numberRegex.allMatches(processed);
 
     for (Match match in matches) {
       double? num = double.tryParse(match.group(0)!);
@@ -646,58 +801,13 @@ class VoiceParserProductUpdated {
     return numbers;
   }
 
-  /// Parse voice input text and extract product name and unit
-  /// Uses product database for better matching and default units
-  static Map<String, String> parseVoiceInput(String input) {
-    if (input.trim().isEmpty) {
-      return {'name': '', 'unit': 'Piece'};
-    }
-
-    // Clean the input
-    String cleaned = input.trim();
-    String cleanedLower = cleaned.toLowerCase();
-
-    // Convert Bangla numbers to English numbers
-    cleaned = _convertBanglaNumbers(cleaned);
-    cleanedLower = _convertBanglaNumbers(cleanedLower);
-
-    // First, try to match a product from database
-    String? matchedProduct = _matchProductFromDatabase(cleanedLower);
-
-    // Detect unit (either from input or use product's default unit)
-    String? detectedUnit = _detectUnit(cleanedLower);
-    String finalUnit = 'Piece';
-
-    if (detectedUnit != null) {
-      finalUnit = detectedUnit;
-    } else if (matchedProduct != null) {
-      // Use default unit from product database
-      finalUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
-    }
-
-    // Extract product name
-    String productName;
-    if (matchedProduct != null) {
-      productName = matchedProduct;
-    } else {
-      productName = _extractProductName(cleaned, detectedUnit);
-    }
-
-    return {
-      'name': productName,
-      'unit': finalUnit,
-    };
-  }
-
   /// Match product from database
   static String? _matchProductFromDatabase(String text) {
-    // Check each product in database
     for (var entry in _productDatabase.entries) {
       String productName = entry.key;
       List<String> variations = (entry.value['variations'] as List).cast<String>();
 
       for (String variation in variations) {
-        // Check if variation exists in the text
         RegExp regex = RegExp(
           r'\b' + RegExp.escape(variation.toLowerCase()) + r'\b',
           caseSensitive: false,
@@ -705,12 +815,114 @@ class VoiceParserProductUpdated {
         );
 
         if (regex.hasMatch(text)) {
-          return productName; // Return the standard product name
+          return productName;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Detect unit from the input text
+  static String? _detectUnit(String text) {
+    print('🔍 Detecting unit from text: "$text"');
+
+    String? longestMatch;
+    int longestMatchLength = 0;
+
+    for (var entry in _unitVariations.entries) {
+      String unit = entry.key; // This is the Bangla unit like 'কেজি'
+      List<String> variations = entry.value;
+
+      print('  Checking unit: $unit with variations: $variations');
+
+      for (String variation in variations) {
+        // For Bangla variations, do case-sensitive exact match
+        bool isBangla = RegExp(r'[\u0980-\u09FF]').hasMatch(variation);
+
+        if (isBangla) {
+          // Case-sensitive match for Bangla
+          if (text.contains(variation)) {
+            print('    ✓ Found Bangla match: "$variation" → $unit');
+            if (variation.length > longestMatchLength) {
+              longestMatch = unit;
+              longestMatchLength = variation.length;
+            }
+          }
+        } else {
+          // Case-insensitive match for English
+          RegExp regex = RegExp(
+            r'\b' + RegExp.escape(variation) + r'\b',
+            caseSensitive: false,
+            unicode: true,
+          );
+
+          if (regex.hasMatch(text)) {
+            print('    ✓ Found English match: "$variation" → $unit');
+            if (variation.length > longestMatchLength) {
+              longestMatch = unit;
+              longestMatchLength = variation.length;
+            }
+          }
         }
       }
     }
 
-    return null;
+    print('  Final detected unit: $longestMatch');
+    return longestMatch;
+  }
+
+
+  /// Convert English unit names to Bangla
+  static String _convertUnitToBangla(String englishUnit) {
+    const Map<String, String> unitMap = {
+      'Kilogram (kg)': 'কেজি',
+      'Gram (g)': 'গ্রাম',
+      'Liter (L)': 'লিটার',
+      'Milliliter (ml)': 'মিলিলিটার',
+      'Piece': 'পিস',
+      'Dozen': 'ডজন',
+      'Pack': 'প্যাক',
+      'Box': 'বক্স',
+      'Meter (m)': 'মিটার',
+      'Centimeter (cm)': 'সেন্টিমিটার',
+    };
+
+    return unitMap[englishUnit] ?? 'লিটার';
+  }
+
+  /// Parse voice input for product name and unit only
+  static Map<String, String> parseVoiceInput(String input) {
+    if (input.trim().isEmpty) {
+      return {'name': '', 'unit': 'পিস'};
+    }
+
+    String cleaned = input.trim();
+    String cleanedLower = cleaned.toLowerCase();
+
+    // Extract product name before any numbers
+    String productName = _extractProductNameBeforeNumbers(cleaned);
+
+    // Match product from database
+    String? matchedProduct = _matchProductFromDatabase(productName.toLowerCase());
+
+    // Detect unit
+    String? detectedUnit = _detectUnit(cleanedLower);
+    String finalUnit = 'পিস';
+
+    if (detectedUnit != null) {
+      finalUnit = detectedUnit;
+    } else if (matchedProduct != null) {
+      String defaultUnit = _productDatabase[matchedProduct]!['defaultUnit'] as String;
+      finalUnit = _convertUnitToBangla(defaultUnit);
+    }
+
+    // Use matched product if found
+    String finalProductName = matchedProduct ?? productName;
+
+    return {
+      'name': finalProductName,
+      'unit': finalUnit,
+    };
   }
 
   /// Get product suggestions based on partial input
@@ -724,7 +936,6 @@ class VoiceParserProductUpdated {
       String productName = entry.key;
       List<String> variations = (entry.value['variations'] as List).cast<String>();
 
-      // Check if any variation starts with or contains the search text
       for (String variation in variations) {
         if (variation.toLowerCase().contains(searchText)) {
           suggestions.add(productName);
@@ -736,69 +947,23 @@ class VoiceParserProductUpdated {
     return suggestions;
   }
 
-  /// Convert Bangla numbers to English numbers
-  static String _convertBanglaNumbers(String text) {
-    String result = text;
-    _banglaNumbers.forEach((bangla, english) {
-      result = result.replaceAll(bangla, english);
-    });
-    return result;
-  }
-
-  /// Detect unit from the input text
-  static String? _detectUnit(String text) {
-    String? longestMatch;
-    int longestMatchLength = 0;
-
-    for (var entry in _unitVariations.entries) {
-      String unit = entry.key;
-      List<String> variations = entry.value;
-
-      for (String variation in variations) {
-        RegExp regex = RegExp(
-          r'\b' + RegExp.escape(variation) + r'\b',
-          caseSensitive: false,
-          unicode: true,
-        );
-
-        if (regex.hasMatch(text)) {
-          if (variation.length > longestMatchLength) {
-            longestMatch = unit;
-            longestMatchLength = variation.length;
-          }
-        }
-      }
-    }
-
-    return longestMatch;
-  }
-
-
-  /// Check if text is primarily English
-  static bool _isEnglishText(String text) {
-    if (text.isEmpty) return false;
-    final firstChar = text.codeUnitAt(0);
-    return (firstChar >= 65 && firstChar <= 90) ||
-        (firstChar >= 97 && firstChar <= 122);
-  }
-
   /// Get default unit for a specific product
   static String getDefaultUnit(String productName) {
-    // Check if product exists in database
     if (_productDatabase.containsKey(productName)) {
-      return _productDatabase[productName]!['defaultUnit'] as String;
+      String unit = _productDatabase[productName]!['defaultUnit'] as String;
+      return _convertUnitToBangla(unit);
     }
 
-    // If not found, try to match with variations
     String? matched = _matchProductFromDatabase(productName.toLowerCase());
     if (matched != null && _productDatabase.containsKey(matched)) {
-      return _productDatabase[matched]!['defaultUnit'] as String;
+      String unit = _productDatabase[matched]!['defaultUnit'] as String;
+      return _convertUnitToBangla(unit);
     }
 
-    return 'Piece'; // Default fallback
+    return 'পিস';
   }
 
-  /// Get all supported units
+  /// Get all supported units (in Bangla)
   static List<String> getSupportedUnits() {
     return _unitVariations.keys.toList();
   }
