@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../controller/auth_controller.dart';
 
 class LoginPage extends StatelessWidget {
@@ -9,30 +10,29 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     print('🔧 Building LoginPage');
 
-    // Find existing controller, don't create a new one
     final AuthController controller = Get.find<AuthController>();
     final TextEditingController phoneController = TextEditingController();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F1),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               // Logo/Icon Section
               Center(
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6C63FF).withOpacity(0.2),
+                        color: AppColors.primary.withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -40,52 +40,55 @@ class LoginPage extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.phone_android_rounded,
-                    size: 64,
-                    color: Color(0xFF6C63FF),
+                    size: 56,
+                    color: Colors.white,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               // Welcome Text
               Text(
                 'স্বাগতম',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF8B7355),
-                  fontSize: 14,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'লগইন করুন',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  fontSize: 32,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  letterSpacing: -1,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'আপনার ফোন নম্বর দিয়ে প্রবেশ করুন',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
+                  fontSize: 13,
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
               // Login Form Container
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
+                      color: AppColors.shadowLight,
+                      blurRadius: 15,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -93,90 +96,95 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Phone Number Field
+                    // Phone Number Field Label
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.15),
+                            gradient: AppColors.successGradient,
                             borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.success.withOpacity(0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
                           child: const Icon(
-                            Icons.phone_outlined,
-                            size: 18,
-                            color: Color(0xFF4CAF50),
+                            Icons.phone_rounded,
+                            size: 16,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'ফোন নম্বর *',
+                        const SizedBox(width: 10),
+                        Text(
+                          'ফোন নম্বর',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.2,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
+
+                    // Phone Input Field
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         hintText: '০১৭xxxxxxxx',
                         hintStyle: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 15,
+                          color: AppColors.textTertiary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                         prefixIcon: Container(
                           padding: const EdgeInsets.all(14),
                           child: const Text(
                             '🇧🇩',
-                            style: TextStyle(fontSize: 20),
+                            style: TextStyle(fontSize: 18),
                           ),
                         ),
                         filled: true,
-                        fillColor: const Color(0xFFFAF6F1),
+                        fillColor: AppColors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: const Color(0xFF4CAF50).withOpacity(0.2),
-                            width: 1.5,
-                          ),
+                          borderSide: BorderSide.none,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: const Color(0xFF4CAF50).withOpacity(0.2),
-                            width: 1.5,
-                          ),
+                          borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF4CAF50),
+                          borderSide: BorderSide(
+                            color: AppColors.primary,
                             width: 2,
                           ),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 18,
+                          vertical: 16,
                         ),
                       ),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w500,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     // Login Button
                     Obx(() => SizedBox(
                       width: double.infinity,
-                      height: 56,
+                      height: 52,
                       child: ElevatedButton(
                         onPressed: controller.isLoading.value
                             ? null
@@ -184,40 +192,68 @@ class LoginPage extends StatelessWidget {
                           controller.loginWithPhone(phoneController.text);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          disabledBackgroundColor: const Color(0xFF6C63FF).withOpacity(0.6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          backgroundColor: Colors.transparent,
+                          disabledBackgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           elevation: 0,
-                        ),
-                        child: controller.isLoading.value
-                            ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        )
-                            : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.login_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'লগইন করুন',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                        ),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: controller.isLoading.value
+                                ? LinearGradient(
+                              colors: [
+                                AppColors.primary.withOpacity(0.6),
+                                AppColors.primaryDark.withOpacity(0.6),
+                              ],
+                            )
+                                : AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: controller.isLoading.value
+                                ? []
+                                : [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
                               ),
+                            ],
+                          ),
+                          child: Container(
+                            alignment: Alignment.center,
+                            child: controller.isLoading.value
+                                ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                                : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.login_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'লগইন করুন',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     )),
@@ -225,14 +261,14 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Divider
               Row(
                 children: [
                   Expanded(
                     child: Divider(
-                      color: Colors.grey.shade300,
+                      color: AppColors.border,
                       thickness: 1,
                     ),
                   ),
@@ -241,52 +277,55 @@ class LoginPage extends StatelessWidget {
                     child: Text(
                       'অথবা',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                   Expanded(
                     child: Divider(
-                      color: Colors.grey.shade300,
+                      color: AppColors.border,
                       thickness: 1,
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Create Account Button
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 52,
                 child: OutlinedButton(
                   onPressed: () => controller.goToCreateCompany(),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: Color(0xFF6C63FF),
+                    side: BorderSide(
+                      color: AppColors.primary,
                       width: 2,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    backgroundColor: Colors.transparent,
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.person_add_outlined,
-                        color: Color(0xFF6C63FF),
-                        size: 22,
+                        Icons.person_add_rounded,
+                        color: AppColors.primary,
+                        size: 20,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'নতুন ইউজার তৈরি করুন',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF6C63FF),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ],
@@ -294,39 +333,8 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 32),
+       
 
-              // Help Text
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.info_outline,
-                        color: Color(0xFF4CAF50),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'পাসওয়ার্ড ছাড়াই লগইন করুন',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.green.shade800,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
