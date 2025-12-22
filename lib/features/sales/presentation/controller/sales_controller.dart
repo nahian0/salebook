@@ -15,6 +15,8 @@ class SalesController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxDouble totalSalesAmount = 0.0.obs;
+  final RxDouble totalDepositAmount = 0.0.obs; // NEW: Total deposit
+  final RxDouble totalDueAmount = 0.0.obs; // NEW: Total due
 
   // Company ID - loaded from storage
   int? companyId;
@@ -55,7 +57,7 @@ class SalesController extends GetxController {
       );
 
       salesList.value = sales;
-      calculateTotalSales();
+      calculateTotalAmounts(); // UPDATED: Calculate all totals
     } catch (e) {
       errorMessage.value = e.toString();
       Get.snackbar(
@@ -69,12 +71,27 @@ class SalesController extends GetxController {
     }
   }
 
-  // Calculate total sales amount
-  void calculateTotalSales() {
+  // UPDATED: Calculate all total amounts (sales, deposit, due)
+  void calculateTotalAmounts() {
+    // Calculate total sales
     totalSalesAmount.value = salesList.fold(
       0.0,
           (sum, sale) => sum + sale.totalAmount,
     );
+
+    // Calculate total deposit
+    totalDepositAmount.value = salesList.fold(
+      0.0,
+          (sum, sale) => sum + sale.depositAmount,
+    );
+
+    // Calculate total due
+    totalDueAmount.value = totalSalesAmount.value - totalDepositAmount.value;
+  }
+
+  // DEPRECATED: Kept for backward compatibility
+  void calculateTotalSales() {
+    calculateTotalAmounts();
   }
 
   // Refresh sales list
@@ -86,7 +103,7 @@ class SalesController extends GetxController {
   void deleteSalesEntry(int saleId) {
     // Remove from local list
     salesList.removeWhere((sale) => sale.id == saleId);
-    calculateTotalSales();
+    calculateTotalAmounts(); // UPDATED: Recalculate all totals
 
     Get.snackbar(
       'সফল',
@@ -108,7 +125,7 @@ class SalesController extends GetxController {
   // Add new sale to list (after creating from add screen)
   void addSaleToList(SalesModel sale) {
     salesList.insert(0, sale); // Add to beginning
-    calculateTotalSales();
+    calculateTotalAmounts(); // UPDATED: Recalculate all totals
   }
 
   @override

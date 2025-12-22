@@ -1003,6 +1003,8 @@ class DialogUtils {
     required String partyName,
     required List<SalesDetailItem> items,
     required double totalAmount,
+    required double depositAmount,
+    required double dueAmount,
   }) {
     Get.dialog(
       Dialog(
@@ -1199,71 +1201,196 @@ class DialogUtils {
                 ),
               ),
 
-              // Total Section
+              // Payment Summary Section - NEW
               Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFF6C63FF).withOpacity(0.05),
-                      const Color(0xFF6C63FF).withOpacity(0.1),
-                    ],
-                  ),
-                  border: Border(
-                    top: BorderSide(
-                      color: const Color(0xFF6C63FF).withOpacity(0.2),
-                      width: 1.5,
-                    ),
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(28),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
                   children: [
-                    const Text(
-                      'মোট পরিমাণ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF424242),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
+                    // Total Amount
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF7C4DFF), Color(0xFF6C63FF)],
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF6C63FF).withOpacity(0.1),
+                            const Color(0xFF6C63FF).withOpacity(0.05),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF6C63FF).withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'মোট পরিমাণ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF424242),
+                            ),
+                          ),
+                          Text(
+                            '৳${totalAmount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C63FF),
+                            ),
                           ),
                         ],
                       ),
-                      child: Text(
-                        '৳${totalAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Deposit and Due Row
+                    Row(
+                      children: [
+                        // Deposit
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.green.withOpacity(0.15),
+                                  Colors.green.withOpacity(0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.green.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.account_balance_wallet,
+                                        color: Colors.green,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'জমা',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  '৳${depositAmount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+
+                        const SizedBox(width: 12),
+
+                        // Due
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: dueAmount > 0
+                                    ? [
+                                  Colors.red.withOpacity(0.15),
+                                  Colors.red.withOpacity(0.05),
+                                ]
+                                    : [
+                                  Colors.grey.withOpacity(0.15),
+                                  Colors.grey.withOpacity(0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: dueAmount > 0
+                                    ? Colors.red.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: dueAmount > 0
+                                            ? Colors.red.withOpacity(0.2)
+                                            : Colors.grey.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.pending_actions,
+                                        color: dueAmount > 0 ? Colors.red : Colors.grey,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'বাকি',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: dueAmount > 0 ? Colors.red : Colors.grey,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  '৳${dueAmount.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: dueAmount > 0 ? Colors.red : Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+
+              const SizedBox(height: 8),
             ],
           ),
         ),

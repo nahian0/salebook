@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../widgets/payment_summery_section.dart';
 import '../widgets/product_form.dart';
 import '../widgets/product_list.dart';
 import '../widgets/voice_button_section.dart';
@@ -92,6 +93,11 @@ class AddSalesEntryScreen extends StatelessWidget {
 
                       // Product Form (Always visible)
                       ProductForm(controller: controller),
+
+                      const SizedBox(height: 16),
+
+                      // Payment Summary Section (shows only when products exist)
+                      PaymentSummarySection(controller: controller),
 
                       const SizedBox(height: 16),
                     ],

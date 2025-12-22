@@ -16,6 +16,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final quantityController = TextEditingController();
   final priceController = TextEditingController();
   final paidController = TextEditingController();
+  final depositController = TextEditingController(); // NEW: Deposit controller
 
   // Observable state
   final selectedCustomer = Rxn<PartyModel>();
@@ -753,8 +754,14 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     return double.tryParse(paidController.text) ?? 0;
   }
 
+  // NEW: Get deposit amount from deposit controller
+  double getDepositAmount() {
+    return double.tryParse(depositController.text) ?? 0;
+  }
+
+  // UPDATED: Calculate due amount using deposit
   double getDueAmount() {
-    return totalAmount.value - getPaidAmount();
+    return totalAmount.value - getDepositAmount();
   }
 
   void clearCustomer() {
@@ -768,6 +775,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     return 'SAL${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
   }
 
+  // UPDATED: Save sales entry with deposit amount
   Future<void> saveSalesEntry() async {
     if (products.isEmpty) {
       _showErrorSnackbar('অন্তত একটি পণ্য যোগ করুন');
@@ -796,7 +804,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       final partyId = selectedCustomer.value?.id ?? 0;
       final partyName = selectedCustomer.value?.name ?? 'Walk-in Customer';
 
-      // Call API with companyId from storage
+      // Call API with companyId from storage and deposit amount
       final result = await _repository.createSale(
         companyId: companyId!,
         salePartyId: partyId,
@@ -804,7 +812,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         saleNo: _generateSaleNo(),
         saleDate: DateTime.now(),
         totalAmount: totalAmount.value,
-        depositAmount: getPaidAmount(),
+        depositAmount: getDepositAmount(), // UPDATED: Use deposit from controller
         salesDetails: salesDetails,
         remarks: '',
       );
@@ -820,7 +828,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
           'customerName': partyName,
           'products': products.toList(),
           'totalAmount': totalAmount.value,
-          'paidAmount': getPaidAmount(),
+          'paidAmount': getDepositAmount(), // UPDATED: Use deposit amount
           'dueAmount': getDueAmount(),
           'timestamp': DateTime.now(),
         };
@@ -907,6 +915,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     quantityController.dispose();
     priceController.dispose();
     paidController.dispose();
+    depositController.dispose(); // ADDED: Dispose deposit controller
 
     // Dispose services and timers
     _speechService.dispose();
