@@ -76,15 +76,16 @@ class PaymentSummarySection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Deposit Amount Input
+            // Deposit Amount Input with Focus Node
             TextField(
               controller: controller.depositController,
+              focusNode: controller.depositFocusNode, // ADDED: Focus node for voice navigation
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'জমা পরিমাণ (৳)',
                 labelStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                hintText: 'যেমন: ৫০০',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                hintText: 'যেমন: ৫০০ অথবা ভয়েসে "জমা ৫০০" বলুন',
+                hintStyle: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
                 filled: true,
                 fillColor: AppColors.background,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -100,6 +101,7 @@ class PaymentSummarySection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.primary, width: 2),
                 ),
+                prefixIcon: const Icon(Icons.account_balance_wallet, size: 20, color: AppColors.textSecondary),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.clear, size: 18),
                   onPressed: () {
@@ -112,6 +114,25 @@ class PaymentSummarySection extends StatelessWidget {
               onChanged: (value) {
                 controller.update();
               },
+            ),
+            const SizedBox(height: 8),
+
+            // Voice Input Hint
+            Row(
+              children: [
+                const Icon(Icons.mic, size: 14, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'টিপস: ভয়েস বাটন চেপে "জমা ৫০০" বললে স্বয়ংক্রিয়ভাবে যোগ হবে',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primary.withOpacity(0.8),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 

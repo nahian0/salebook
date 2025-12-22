@@ -16,7 +16,13 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
   final quantityController = TextEditingController();
   final priceController = TextEditingController();
   final paidController = TextEditingController();
-  final depositController = TextEditingController(); // NEW: Deposit controller
+  final depositController = TextEditingController();
+
+  // Focus node for deposit field
+  final depositFocusNode = FocusNode();
+
+  // Scroll controller for page scrolling (set from screen)
+  ScrollController? scrollController;
 
   // Observable state
   final selectedCustomer = Rxn<PartyModel>();
@@ -376,20 +382,17 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     _initializeController();
     _initSpeech();
     _initAnimations();
-    _onPaidChanged(); // Store reference
+    _onPaidChanged();
     paidController.addListener(_onPaidChanged);
   }
 
-  // Listener callback for proper cleanup
   void _onPaidChanged() => update();
 
   void _initializeRegexPatterns() {
     if (_regexInitialized) return;
 
-    // Pattern to remove trailing numbers
     _trailingNumberPattern = RegExp(r'\s*\d+\.?\d*\s*$');
 
-    // Create word boundary pattern for English units
     final englishPattern = _englishUnitWords
         .map((unit) => RegExp.escape(unit))
         .join('|');
@@ -398,7 +401,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       caseSensitive: false,
     );
 
-    // Create pattern for Bangla units
     final banglaPattern = _banglaUnitWords
         .map((unit) => RegExp.escape(unit))
         .join('|');
@@ -412,16 +414,14 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
 
   Future<void> _initializeController() async {
     try {
-      // Load company ID from storage
       companyId = await StorageService.getCompanyId();
 
       if (companyId == null) {
         _showErrorSnackbar('কোম্পানি তথ্য পাওয়া যায়নি');
-        Get.back(); // Exit immediately
+        Get.back();
         return;
       }
 
-      // Load parties after getting company ID
       await _loadParties();
     } catch (e) {
       debugPrint('Initialization error: $e');
@@ -465,19 +465,16 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     }
   }
 
-  // Start typing mode for new customer
   void startTypingCustomer() {
     isTypingCustomer.value = true;
     customerSearchController.clear();
   }
 
-  // Cancel typing mode
   void cancelTypingCustomer() {
     isTypingCustomer.value = false;
     customerSearchController.clear();
   }
 
-  // Save typed customer
   Future<void> saveTypedCustomer() async {
     final name = customerSearchController.text.trim();
     if (name.isEmpty) {
@@ -485,7 +482,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       return;
     }
 
-    // Check if customer already exists
     final existingParty = customerList.firstWhereOrNull(
           (party) => party.name.toLowerCase() == name.toLowerCase(),
     );
@@ -498,7 +494,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       return;
     }
 
-    // Create new customer
     await createNewParty(name);
     isTypingCustomer.value = false;
     customerSearchController.clear();
@@ -556,7 +551,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       },
     );
 
-    // Use timer with proper cleanup
     _autoStopTimer?.cancel();
     _autoStopTimer = Timer(const Duration(seconds: 5), () async {
       if (isListening.value) {
@@ -589,7 +583,17 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
       return;
     }
 
-    // Try to parse as product input first
+    // CRITICAL: Check first word for deposit command BEFORE anything else
+    final firstWord = recognizedText.trim().split(' ').first.toLowerCase();
+    print('First word detected: $firstWord');
+
+    if (_isDepositCommandFirstWord(firstWord)) {
+      print('✓ Deposit command detected!');
+      _handleDepositCommand(recognizedText);
+      return;
+    }
+
+    // Try to parse as product input
     final parsedData = VoiceParserProductUpdated.parseFullProductInput(recognizedText);
 
     print('Parsed product name: ${parsedData['productName']}');
@@ -598,21 +602,17 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     print('Parsed price: ${parsedData['price']}');
 
     if (parsedData['productName']?.isNotEmpty ?? false) {
-      // It's a product entry
       String productName = _cleanProductName(parsedData['productName']!);
       productController.text = productName;
 
-      // Set quantity
       if (parsedData['quantity']?.isNotEmpty ?? false) {
         quantityController.text = parsedData['quantity']!;
       }
 
-      // Set price
       if (parsedData['price']?.isNotEmpty ?? false) {
         priceController.text = parsedData['price']!;
       }
 
-      // Set unit with proper validation
       String detectedUnit = parsedData['unit'] ?? 'লিটার';
       print('Detected unit before normalization: $detectedUnit');
 
@@ -626,7 +626,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         print('⚠ Warning: Unit "$finalUnit" not in list, keeping current: ${selectedUnit.value}');
       }
 
-      // Force UI refresh
       update();
 
       _showSuccessSnackbar('পণ্যের তথ্য যোগ হয়েছে\n$productName - ${selectedUnit.value}');
@@ -640,7 +639,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         selectedCustomer.value = existingParty;
         _showSuccessSnackbar('গ্রাহক নির্বাচিত: ${existingParty.name}');
       } else {
-        // Ask if user wants to create new customer
         Get.defaultDialog(
           title: 'নতুন গ্রাহক?',
           middleText: 'গ্রাহক "$recognizedText" তৈরি করতে চান?',
@@ -657,14 +655,139 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     }
   }
 
-  /// Normalize unit variations to match the units list
+  /// NEW: Check if the FIRST WORD is a deposit command
+  bool _isDepositCommandFirstWord(String firstWord) {
+    // Check if there's at least one product
+    if (products.isEmpty) {
+      print('⚠ No products added yet, ignoring deposit command');
+      return false;
+    }
+
+    final lowerFirstWord = firstWord.toLowerCase().trim();
+
+    // List of deposit keywords to check against first word
+    final depositKeywords = [
+      'জমা',
+      'joma',
+      'zoma',
+      'juma',
+      'zuma',
+      'দিলাম',
+      'dilam',
+      'দিলো',
+      'dilo',
+      'paid',
+      'pay',
+      'payment',
+      'deposit',
+    ];
+
+    // Check if first word matches any deposit keyword
+    for (final keyword in depositKeywords) {
+      if (lowerFirstWord == keyword) {
+        print('✓ First word "$lowerFirstWord" matches deposit keyword "$keyword"');
+        return true;
+      }
+    }
+
+    print('✗ First word "$lowerFirstWord" is not a deposit keyword');
+    return false;
+  }
+
+  /// OLD METHOD - REMOVED
+  /// NEW: Check if the recognized text is a deposit command
+  bool _isDepositCommand(String text) {
+    // This method is now replaced by _isDepositCommandFirstWord
+    // Keeping for backward compatibility but not used
+    return false;
+  }
+
+  /// NEW: Handle deposit command by extracting amount and filling deposit field
+  void _handleDepositCommand(String text) {
+    print('=== DEPOSIT COMMAND HANDLER ===');
+    print('Full input: $text');
+
+    // Extract numbers from the text (both Bengali and English)
+    final amount = _extractAmount(text);
+    print('Extracted amount: $amount');
+
+    if (amount > 0) {
+      depositController.text = amount.toStringAsFixed(0);
+
+      // Scroll to bottom of the page
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (scrollController != null && scrollController!.hasClients) {
+          scrollController!.animateTo(
+            scrollController!.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+          );
+
+          // Focus on deposit field after scroll
+          Future.delayed(const Duration(milliseconds: 400), () {
+            depositFocusNode.requestFocus();
+          });
+        } else {
+          // Fallback if scroll controller not available
+          depositFocusNode.requestFocus();
+        }
+      });
+
+      update();
+      _showSuccessSnackbar('জমা পরিমাণ যোগ হয়েছে: ৳${amount.toStringAsFixed(0)}');
+      print('✓ Deposit amount set successfully: $amount');
+    } else {
+      _showErrorSnackbar('জমার পরিমাণ বুঝতে পারিনি। সংখ্যা সহ বলুন, যেমন: "জমা ৫০০"');
+      print('✗ Could not extract amount from text');
+    }
+  }
+
+  /// NEW: Extract numeric amount from text (supports Bengali and English numbers)
+  double _extractAmount(String text) {
+    print('Extracting amount from: "$text"');
+
+    // Convert Bengali numbers to English
+    final bengaliToEnglish = {
+      '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+      '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
+    };
+
+    String normalized = text;
+    bengaliToEnglish.forEach((bengali, english) {
+      normalized = normalized.replaceAll(bengali, english);
+    });
+
+    print('After Bengali conversion: "$normalized"');
+
+    // Find all numbers in the text
+    final numberPattern = RegExp(r'\d+\.?\d*');
+    final matches = numberPattern.allMatches(normalized);
+
+    print('Number matches found: ${matches.length}');
+
+    if (matches.isEmpty) {
+      print('No numbers found in text');
+      return 0;
+    }
+
+    // Return the first number found (skip the first word, take the number after it)
+    for (var match in matches) {
+      final numberStr = match.group(0);
+      final amount = double.tryParse(numberStr ?? '0') ?? 0;
+      print('Found number: $numberStr -> $amount');
+      if (amount > 0) {
+        return amount;
+      }
+    }
+
+    return 0;
+  }
+
   String _normalizeUnit(String unit) {
     print('Normalizing unit: $unit');
 
-    // Remove whitespace
     String cleaned = unit.trim();
 
-    // If already in the list, return as is
     if (units.contains(cleaned)) {
       print('Unit already in list: $cleaned');
       return cleaned;
@@ -672,45 +795,30 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
 
     String lowerUnit = cleaned.toLowerCase();
 
-    // Check direct mapping (English - case insensitive)
     if (_unitMapping.containsKey(lowerUnit)) {
       print('Found mapping: $lowerUnit -> ${_unitMapping[lowerUnit]}');
       return _unitMapping[lowerUnit]!;
     }
 
-    // Check Bangla direct match (case-sensitive for Bangla)
     if (_unitMapping.containsKey(cleaned)) {
       print('Found Bangla mapping: $cleaned -> ${_unitMapping[cleaned]}');
       return _unitMapping[cleaned]!;
     }
 
-    // Default fallback
     print('No mapping found, using default: লিটার');
     return 'লিটার';
   }
 
-  /// Clean product name by removing units and numbers
   String _cleanProductName(String productName) {
     if (productName.isEmpty) return '';
 
     String cleaned = productName.trim();
-
-    // Step 1: Remove trailing numbers
     cleaned = cleaned.replaceAll(_trailingNumberPattern, '');
-
-    // Step 2: Remove English units (case-insensitive, whole words only)
     cleaned = cleaned.replaceAll(_englishUnitPattern, '');
-
-    // Step 3: Remove Bangla units
     cleaned = cleaned.replaceAll(_banglaUnitPattern, ' ');
-
-    // Step 4: Clean up extra whitespace
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ');
-
-    // Step 5: Final trim
     cleaned = cleaned.trim();
 
-    // Return cleaned name, or original if cleaning resulted in empty string
     return cleaned.isEmpty ? productName.trim() : cleaned;
   }
 
@@ -754,12 +862,10 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     return double.tryParse(paidController.text) ?? 0;
   }
 
-  // NEW: Get deposit amount from deposit controller
   double getDepositAmount() {
     return double.tryParse(depositController.text) ?? 0;
   }
 
-  // UPDATED: Calculate due amount using deposit
   double getDueAmount() {
     return totalAmount.value - getDepositAmount();
   }
@@ -775,14 +881,12 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     return 'SAL${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
   }
 
-  // UPDATED: Save sales entry with deposit amount
   Future<void> saveSalesEntry() async {
     if (products.isEmpty) {
       _showErrorSnackbar('অন্তত একটি পণ্য যোগ করুন');
       return;
     }
 
-    // Check if company ID is available
     if (companyId == null) {
       _showErrorSnackbar('কোম্পানি তথ্য পাওয়া যায়নি');
       return;
@@ -791,7 +895,6 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     try {
       isSaving.value = true;
 
-      // Prepare sales details
       final salesDetails = products.map((product) {
         return {
           'productDescription': '${product['productName']} - ${product['quantity']} ${product['unit']}',
@@ -800,11 +903,9 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         };
       }).toList();
 
-      // Use party ID 0 if no customer selected
       final partyId = selectedCustomer.value?.id ?? 0;
       final partyName = selectedCustomer.value?.name ?? 'Walk-in Customer';
 
-      // Call API with companyId from storage and deposit amount
       final result = await _repository.createSale(
         companyId: companyId!,
         salePartyId: partyId,
@@ -812,34 +913,28 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         saleNo: _generateSaleNo(),
         saleDate: DateTime.now(),
         totalAmount: totalAmount.value,
-        depositAmount: getDepositAmount(), // UPDATED: Use deposit from controller
+        depositAmount: getDepositAmount(),
         salesDetails: salesDetails,
         remarks: '',
       );
 
-      // Hide loading immediately after API call
       isSaving.value = false;
 
       if (result['success'] == true) {
-        // Prepare result data
         final resultData = {
           'success': true,
           'customerId': partyId,
           'customerName': partyName,
           'products': products.toList(),
           'totalAmount': totalAmount.value,
-          'paidAmount': getDepositAmount(), // UPDATED: Use deposit amount
+          'paidAmount': getDepositAmount(),
           'dueAmount': getDueAmount(),
           'timestamp': DateTime.now(),
         };
 
-        // Show success message and navigate back
         Get.back(result: resultData);
-
-        // Show snackbar after navigation
         _showSuccessSnackbar('বিক্রয় সংরক্ষিত হয়েছে');
       } else {
-        // Show retry dialog
         final retry = await Get.dialog<bool>(
           AlertDialog(
             title: const Text('সংরক্ষণ ব্যর্থ'),
@@ -858,7 +953,7 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
         );
 
         if (retry == true) {
-          await saveSalesEntry(); // Retry
+          await saveSalesEntry();
         }
       }
     } catch (e) {
@@ -872,6 +967,9 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     if (isTypingCustomer.value) {
       return 'গ্রাহকের নাম বলুন...';
     }
+    if (products.isNotEmpty) {
+      return 'পণ্য বা জমা পরিমাণ বলুন...';
+    }
     return 'গ্রাহক বা পণ্যের তথ্য বলুন...';
   }
 
@@ -879,10 +977,12 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
     if (isTypingCustomer.value) {
       return 'গ্রাহকের নাম বলতে চাপুন';
     }
+    if (products.isNotEmpty) {
+      return 'পণ্য যোগ করুন অথবা "জমা ৫০০" বলুন';
+    }
     return 'গ্রাহক বা পণ্য যোগ করতে চাপুন';
   }
 
-  // Helper methods for snackbars
   void _showSuccessSnackbar(String message, {Duration? duration}) {
     Get.snackbar(
       'সফল',
@@ -906,25 +1006,18 @@ class SalesEntryController extends GetxController with GetTickerProviderStateMix
 
   @override
   void onClose() {
-    // Properly cleanup listeners
     paidController.removeListener(_onPaidChanged);
-
-    // Dispose controllers
     customerSearchController.dispose();
     productController.dispose();
     quantityController.dispose();
     priceController.dispose();
     paidController.dispose();
-    depositController.dispose(); // ADDED: Dispose deposit controller
-
-    // Dispose services and timers
+    depositController.dispose();
+    depositFocusNode.dispose(); // NEW: Dispose focus node
     _speechService.dispose();
     _autoStopTimer?.cancel();
-
-    // Dispose animations
     pulseController.dispose();
     waveController.dispose();
-
     super.onClose();
   }
 }

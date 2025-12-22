@@ -10,12 +10,28 @@ import '../widgets/customer_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controller/sales_entry_controller.dart';
 
-class AddSalesEntryScreen extends StatelessWidget {
+class AddSalesEntryScreen extends StatefulWidget {
   const AddSalesEntryScreen({super.key});
+
+  @override
+  State<AddSalesEntryScreen> createState() => _AddSalesEntryScreenState();
+}
+
+class _AddSalesEntryScreenState extends State<AddSalesEntryScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(SalesEntryController());
+
+    // Store scroll controller in controller for access
+    controller.scrollController = _scrollController;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,6 +84,7 @@ class AddSalesEntryScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  controller: _scrollController,
                   padding: const EdgeInsets.only(bottom: 180),
                   child: Column(
                     children: [
